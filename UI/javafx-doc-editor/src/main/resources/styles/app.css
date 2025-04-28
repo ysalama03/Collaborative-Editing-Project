@@ -43,3 +43,13 @@ body {
     -fx-padding: 10px;
     -fx-background-color: transparent;
 }
+
+.main-menu-btn {
+    -fx-background-color: #111;
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-padding: 8 24 8 24;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-width: 0;
+}

@@ -12,7 +12,7 @@ public class Main extends Application {
 
         // Initialize the Main Menu UI
         MainMenuUI mainMenu = new MainMenuUI();
-        Scene scene = new Scene(mainMenu.createMainMenu(), 800, 600);
+        Scene scene = new Scene(mainMenu.createMainMenu(primaryStage), 800, 600);
         
         primaryStage.setScene(scene);
         primaryStage.show();

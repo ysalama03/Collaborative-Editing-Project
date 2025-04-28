@@ -1,69 +1,103 @@
 package app;
 
-import javafx.application.Application;
 import javafx.geometry.Insets;
-import javafx.scene.Scene;
+import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
-public class MainMenuUI extends Application {
+public class MainMenuUI {
 
-    @Override
-    public void start(Stage primaryStage) {
-        primaryStage.setTitle("Main Menu");
+    public Parent createMainMenu(Stage primaryStage) {
+        // Section 1: New Doc
+        VBox newDocSection = new VBox(10);
+        newDocSection.setAlignment(Pos.CENTER);
 
-        // Create sections
-        HBox newDocSection = createNewDocSection();
-        HBox browseSection = createBrowseSection();
-        HBox sessionCodeSection = createSessionCodeSection();
+        Rectangle newDocIcon = new Rectangle(48, 48, Color.TRANSPARENT);
+        newDocIcon.setStroke(Color.BLACK);
+        newDocIcon.setArcWidth(8);
+        newDocIcon.setArcHeight(8);
+        // Draw a plus sign
+        Pane plus = new Pane();
+        plus.setPrefSize(48, 48);
+        plus.getChildren().addAll(
+            line(24, 12, 24, 36),
+            line(12, 24, 36, 24)
+        );
+        StackPane newDocIconStack = new StackPane(newDocIcon, plus);
 
-        // Layout
-        VBox mainLayout = new VBox(20, newDocSection, browseSection, sessionCodeSection);
-        mainLayout.setPadding(new Insets(20));
-        
-        Scene scene = new Scene(mainLayout, 400, 300);
-        scene.getStylesheets().add(getClass().getResource("/styles/app.css").toExternalForm());
-
-        primaryStage.setScene(scene);
-        primaryStage.show();
-    }
-
-    private HBox createNewDocSection() {
         Button newDocButton = new Button("New Doc.");
-        newDocButton.setGraphic(new DocumentPlusIcon().getIcon());
-        newDocButton.getStyleClass().add("flat-button");
+        newDocButton.setMaxWidth(Double.MAX_VALUE);
+        newDocButton.getStyleClass().add("main-menu-btn");
 
-        HBox newDocHBox = new HBox(10, newDocButton);
-        newDocHBox.setPadding(new Insets(10));
-        return newDocHBox;
-    }
+        // Open EditorUI when clicked
+        newDocButton.setOnAction(e -> {
+            EditorUI editor = new EditorUI();
+            try {
+                editor.start(primaryStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
 
-    private HBox createBrowseSection() {
+        newDocSection.getChildren().addAll(newDocIconStack, newDocButton);
+
+        // Section 2: Browse
+        VBox browseSection = new VBox(10);
+        browseSection.setAlignment(Pos.CENTER);
+
+        Rectangle browseIcon = new Rectangle(48, 48, Color.TRANSPARENT);
+        browseIcon.setStroke(Color.BLACK);
+        browseIcon.setArcWidth(8);
+        browseIcon.setArcHeight(8);
+        StackPane browseIconStack = new StackPane(browseIcon);
+
         Button browseButton = new Button("Browse..");
-        browseButton.setGraphic(new DocumentIcon().getIcon());
-        browseButton.getStyleClass().add("flat-button");
+        browseButton.setMaxWidth(Double.MAX_VALUE);
+        browseButton.getStyleClass().add("main-menu-btn");
 
-        HBox browseHBox = new HBox(10, browseButton);
-        browseHBox.setPadding(new Insets(10));
-        return browseHBox;
-    }
+        browseSection.getChildren().addAll(browseIconStack, browseButton);
 
-    private HBox createSessionCodeSection() {
-        TextField sessionCodeField = new TextField();
-        sessionCodeField.setPromptText("Session Code");
+        // Section 3: Session Code + Join
+        VBox sessionSection = new VBox(10);
+        sessionSection.setAlignment(Pos.CENTER);
+
+        Label sessionLabel = new Label("Session Code");
+        TextField sessionField = new TextField();
+        sessionField.setPromptText("Enter code");
+        sessionField.setPrefWidth(120);
+
         Button joinButton = new Button("Join");
-        joinButton.getStyleClass().add("flat-button");
+        joinButton.getStyleClass().add("main-menu-btn");
 
-        HBox sessionCodeHBox = new HBox(10, sessionCodeField, joinButton);
-        sessionCodeHBox.setPadding(new Insets(10));
-        return sessionCodeHBox;
+        HBox joinBox = new HBox(5, sessionField, joinButton);
+        joinBox.setAlignment(Pos.CENTER);
+
+        sessionSection.getChildren().addAll(sessionLabel, joinBox);
+
+        // Main layout
+        HBox mainBox = new HBox(60, newDocSection, browseSection, sessionSection);
+        mainBox.setAlignment(Pos.CENTER);
+
+        VBox root = new VBox(mainBox);
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(40));
+        root.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
+
+        return root;
     }
 
-    public static void main(String[] args) {
-        launch(args);
+    // Helper to draw a line for the plus sign
+    private javafx.scene.shape.Line line(double startX, double startY, double endX, double endY) {
+        javafx.scene.shape.Line l = new javafx.scene.shape.Line(startX, startY, endX, endY);
+        l.setStroke(Color.BLACK);
+        l.setStrokeWidth(3);
+        return l;
     }
 }
