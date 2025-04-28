@@ -1,0 +1,45 @@
+/* Main application styles */
+
+body {
+    -fx-background-color: white;
+}
+
+/* Button styles */
+.button {
+    -fx-background-color: black;
+    -fx-text-fill: white;
+    -fx-padding: 10px 20px;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+/* Layout styles */
+.vbox {
+    -fx-spacing: 20px;
+    -fx-alignment: center;
+}
+
+.hbox {
+    -fx-spacing: 20px;
+    -fx-alignment: center;
+}
+
+/* TextField styles */
+.text-field {
+    -fx-pref-width: 200px;
+    -fx-padding: 10px;
+    -fx-font-size: 14px;
+}
+
+/* TextArea styles */
+.text-area {
+    -fx-border-color: transparent;
+    -fx-font-family: "Consolas";
+    -fx-font-size: 14px;
+}
+
+/* Active Users list styles */
+.list-view {
+    -fx-padding: 10px;
+    -fx-background-color: transparent;
+}
