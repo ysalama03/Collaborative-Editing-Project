@@ -1,4 +1,4 @@
-package main.java.app.Client;
+package app.Client;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.socket.client.WebSocketClient;
 

@@ -8,8 +8,10 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
 
 public class EditorUI extends Application {
 
@@ -25,22 +27,22 @@ public class EditorUI extends Application {
         Button redoButton = new Button("Redo");
         Button exportButton = new Button("Export");
 
-        Label viewerCodeLabel = new Label("Viewer Code: ABC123");
+        // Labels for Viewer Code and Editor Code
+        Label viewerCodeLabel = new Label("Viewer Code: Loading...");
+        Label editorCodeLabel = new Label("Editor Code: Loading...");
         Button copyViewerCodeButton = new Button("Copy");
-
-        Label editorCodeLabel = new Label("Editor Code: XYZ789");
         Button copyEditorCodeButton = new Button("Copy");
 
         ListView<String> activeUsersList = new ListView<>();
         activeUsersList.getItems().addAll("User1", "User2", "(you)", "User3");
-        
+
         leftPanel.getChildren().addAll(undoButton, redoButton, exportButton, viewerCodeLabel, copyViewerCodeButton, editorCodeLabel, copyEditorCodeButton, activeUsersList);
 
         // Right Panel
         TextArea textArea = new TextArea();
         textArea.setWrapText(true);
         textArea.setStyle("-fx-border-color: transparent; -fx-font-family: 'Consolas';");
-        
+
         // Main Layout
         BorderPane mainLayout = new BorderPane();
         mainLayout.setLeft(leftPanel);
@@ -51,6 +53,40 @@ public class EditorUI extends Application {
 
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        // Fetch Viewer and Editor Codes from the Server
+        fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
+    }
+
+    /**
+     * Fetches the viewer and editor codes from the server and updates the labels.
+     *
+     * @param viewerCodeLabel the label to display the viewer code
+     * @param editorCodeLabel the label to display the editor code
+     */
+    private void fetchDocumentCodes(Label viewerCodeLabel, Label editorCodeLabel) {
+        try {
+            // Create a RestTemplate instance
+            RestTemplate restTemplate = new RestTemplate();
+
+            // Define the server endpoint for creating a new document
+            String serverUrl = "http://localhost:8080/createDocument";
+
+            // Send a POST request to the server and receive the response as a Map
+            Map<String, String> response = restTemplate.postForObject(serverUrl, null, Map.class);
+
+            // Extract the viewer and editor codes from the response
+            String viewerCode = response.get("viewerCode");
+            String editorCode = response.get("editorCode");
+
+            // Update the labels with the received codes
+            viewerCodeLabel.setText("Viewer Code: " + viewerCode);
+            editorCodeLabel.setText("Editor Code: " + editorCode);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            viewerCodeLabel.setText("Viewer Code: Error");
+            editorCodeLabel.setText("Editor Code: Error");
+        }
     }
 
     public static void main(String[] args) {

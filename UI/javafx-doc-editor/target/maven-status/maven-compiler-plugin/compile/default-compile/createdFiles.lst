@@ -1,0 +1,11 @@
+app\Client\Client.class
+app\icons\DocumentIcon.class
+app\MainMenuUI.class
+app\EditorUI.class
+app\icons\RedoIcon.class
+app\Client\ClientWebsocket.class
+app\Client\ClientWebsocket$1.class
+app\icons\DocumentPlusIcon.class
+app\icons\UndoIcon.class
+app\icons\UserIcon.class
+app\Main.class
