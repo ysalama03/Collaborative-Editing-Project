@@ -24,7 +24,7 @@ public class WebSocketNetworkHandler implements CRDTManager.NetworkHandler {
     private String sessionCode;
     private final int userId;
     private final Gson gson;
-    private final Queue<Map<String, Object>> operationsQueue;
+    private final Queue<Operation> operationsQueue;
     private final Queue<Map<String, Object>> cursorQueue;
     private final ExecutorService executorService;
     private final ScheduledExecutorService scheduledExecutor;
@@ -119,7 +119,7 @@ public class WebSocketNetworkHandler implements CRDTManager.NetworkHandler {
         executorService.submit(() -> {
             // Process operations
             while (!operationsQueue.isEmpty()) {
-                Map<String, Object> operation = operationsQueue.poll();
+                Operation operation = operationsQueue.poll();
                 sendMessage("operation", operation);
             }
         });
@@ -231,7 +231,7 @@ public class WebSocketNetworkHandler implements CRDTManager.NetworkHandler {
     }
     
     @Override
-    public void sendOperation(Map<String, Object> operation) {
+    public void sendOperation(Operation operation) {
         if (connected) {
             sendMessage("operation", operation);
         } else {

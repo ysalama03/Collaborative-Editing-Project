@@ -1,4 +1,4 @@
-package com.example.server.CRDT;
+package com.example.server.CRDTfiles;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -122,7 +122,7 @@ public class CRDTManager {
         /**
          * Sends an operation to the network.
          */
-        void sendOperation(Map<String, Object> operation);
+        void sendOperation(Operation operation);
         
         /**
          * Sends a cursor position to the network.
@@ -196,7 +196,7 @@ public class CRDTManager {
             
             // Convert operation to network message and send
             String message = crdt.createOperationMessage(operation);
-            Map<String, Object> operationMap = parseOperationMessage(message);
+            Operation operationMap = parseOperationMessage(message);
             networkHandler.sendOperation(operationMap);
             
             // Notify UI that document has changed
@@ -228,7 +228,7 @@ public class CRDTManager {
             
             // Convert operation to network message and send
             String message = crdt.createOperationMessage(operation);
-            Map<String, Object> operationMap = parseOperationMessage(message);
+            Operation operationMap = parseOperationMessage(message);
             networkHandler.sendOperation(operationMap);
             
             // Notify UI that document has changed
@@ -260,7 +260,7 @@ public class CRDTManager {
             
             // Convert operation to network message and send
             String message = crdt.createOperationMessage(operation);
-            Map<String, Object> operationMap = parseOperationMessage(message);
+            Operation operationMap = parseOperationMessage(message);
             networkHandler.sendOperation(operationMap);
             
             // Notify UI that document has changed
@@ -292,7 +292,7 @@ public class CRDTManager {
             
             // Convert operation to network message and send
             String message = crdt.createOperationMessage(operation);
-            Map<String, Object> operationMap = parseOperationMessage(message);
+            Operation operationMap = parseOperationMessage(message);
             networkHandler.sendOperation(operationMap);
             
             // Notify UI that document has changed
@@ -357,68 +357,55 @@ public class CRDTManager {
      * @param message the message to parse
      * @return a map representation of the operation
      */
-    private Map<String, Object> parseOperationMessage(String message) {
+    private Operation parseOperationMessage(String message) {
         // In a real implementation, this would use a JSON parser like Gson
         // For this example, we'll simulate it with a simple implementation
-        Map<String, Object> result = new HashMap<>();
+        Operation result = new Operation();
         
         if (message.contains("\"Op\":\"insert\"")) {
-            result.put("Op", "insert");
+            result.setOp("insert");;
             
             // Extract UID
             int uidStart = message.indexOf("\"UID\":") + 6;
             int uidEnd = message.indexOf(",", uidStart);
-            result.put("UID", Integer.parseInt(message.substring(uidStart, uidEnd).trim()));
+            result.setID(Integer.parseInt(message.substring(uidStart, uidEnd).trim()));
             
             // Extract Clock
             int clockStart = message.indexOf("\"Clock\":\"") + 9;
             int clockEnd = message.indexOf("\"", clockStart);
-            result.put("Clock", message.substring(clockStart, clockEnd));
+            result.setTimestamp(clockEnd);//?
             
             // Extract Value
             int valueStart = message.indexOf("\"Value\":'") + 9;
             int valueEnd = message.indexOf("'", valueStart);
-            result.put("Value", message.substring(valueStart, valueEnd));
+            result.setValue(message.substring(valueStart, valueEnd));
             
             // Extract Parent
             if (message.contains("\"Parent\":null")) {
-                result.put("Parent", null);
+                result.setParentID(-1);
+                result.setParentTimestamp(-1);
             } else {
                 int parentStart = message.indexOf("\"Parent\":[") + 10;
                 int parentEnd = message.indexOf("]", parentStart);
                 String parentStr = message.substring(parentStart, parentEnd);
                 String[] parts = parentStr.split(",");
-                
-                List<Object> parent = new ArrayList<>();
-                parent.add(Integer.parseInt(parts[0].trim()));
-                parent.add(parts[1].trim().replace("\"", ""));
-                
-                result.put("Parent", parent);
+
+                result.setParentID(Integer.parseInt(parts[0].trim()));
+                result.setParentTimestamp(Long.parseLong(parts[1].trim()));
             }
         } else if (message.contains("\"Op\":\"delete\"")) {
-            result.put("Op", "delete");
+            result.setOp("delete");
             
             // Extract UID
             int uidStart = message.indexOf("\"UID\":") + 6;
             int uidEnd = message.indexOf(",", uidStart);
-            result.put("UID", Integer.parseInt(message.substring(uidStart, uidEnd).trim()));
+            result.setID(Integer.parseInt(message.substring(uidStart, uidEnd).trim()));
             
             // Extract Clock
             int clockStart = message.indexOf("\"Clock\":\"") + 9;
             int clockEnd = message.indexOf("\"", clockStart);
-            result.put("Clock", message.substring(clockStart, clockEnd));
+            result.setTimestamp(clockEnd);
             
-            // Extract ID
-            int idStart = message.indexOf("\"ID\":[") + 6;
-            int idEnd = message.indexOf("]", idStart);
-            String idStr = message.substring(idStart, idEnd);
-            String[] parts = idStr.split(",");
-            
-            List<Object> id = new ArrayList<>();
-            id.add(Integer.parseInt(parts[0].trim()));
-            id.add(parts[1].trim().replace("\"", ""));
-            
-            result.put("ID", id);
         }
         
         return result;

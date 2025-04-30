@@ -7,9 +7,8 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-
-import com.example.server.CRDT.CRDTManager;
 import com.example.server.Operation;
+import com.example.server.CRDTfiles.CRDTManager;
 
 @Controller
 public class WebSocketController {
