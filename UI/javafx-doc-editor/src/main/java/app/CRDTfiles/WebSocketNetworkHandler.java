@@ -1,4 +1,4 @@
-package com.example.server.CRDT;
+package app.CRDTfiles;
 
 import java.net.URI;
 import java.util.*;
@@ -13,6 +13,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import app.Operation;
 /**
  * Network handler implementation using WebSockets.
  */
@@ -185,7 +186,7 @@ public class WebSocketNetworkHandler implements CRDTManager.NetworkHandler {
                 switch (type) {
                     case "operation":
                         if (onOperationReceived != null) {
-                            Map<String, Object> operation = gson.fromJson(
+                            Operation operation = gson.fromJson(
                                 jsonMessage.get("data"),
                                 new TypeToken<Map<String, Object>>() {}.getType()
                             );
