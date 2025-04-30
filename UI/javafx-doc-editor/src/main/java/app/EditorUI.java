@@ -15,6 +15,17 @@ import java.util.Map;
 
 public class EditorUI extends Application {
 
+    private String initialContent = ""; // Field to store the initial content
+
+    /**
+     * Sets the initial content of the editor.
+     *
+     * @param content the content to display in the editor
+     */
+    public void setInitialContent(String content) {
+        this.initialContent = content;
+    }
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Document Editor");
@@ -42,6 +53,9 @@ public class EditorUI extends Application {
         TextArea textArea = new TextArea();
         textArea.setWrapText(true);
         textArea.setStyle("-fx-border-color: transparent; -fx-font-family: 'Consolas';");
+
+        // Set the initial content in the TextArea
+        textArea.setText(initialContent);
 
         // Main Layout
         BorderPane mainLayout = new BorderPane();

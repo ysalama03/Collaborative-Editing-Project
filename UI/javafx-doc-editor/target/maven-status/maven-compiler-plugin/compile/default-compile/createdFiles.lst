@@ -1,5 +1,4 @@
 app\MainMenuUI.class
-app\CRDTfiles\WebSocketNetworkHandler$4.class
 app\icons\UndoIcon.class
 app\CRDTfiles\CRDT$InsertOperation.class
 app\CRDTfiles\CRDTManager$NetworkHandler$OnUserListReceived.class
@@ -21,7 +20,6 @@ app\CRDTfiles\CRDTManager$NetworkHandler$OnCursorPositionReceived.class
 app\Client\Client.class
 app\icons\DocumentIcon.class
 app\CRDTfiles\CRDTManager$NetworkHandler$OnOperationReceived.class
-app\CRDTfiles\WebSocketNetworkHandler$3.class
 app\CRDTfiles\CRDT$DeleteOperation.class
 app\CRDTfiles\WebSocketNetworkHandler$1.class
 app\CRDTfiles\CRDTManager.class

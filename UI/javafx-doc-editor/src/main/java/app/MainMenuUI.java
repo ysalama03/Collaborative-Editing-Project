@@ -3,6 +3,7 @@ package app;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -10,7 +11,11 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import java.io.File;
+import java.nio.file.Files;
 
 public class MainMenuUI {
 
@@ -61,6 +66,33 @@ public class MainMenuUI {
         Button browseButton = new Button("Browse..");
         browseButton.setMaxWidth(Double.MAX_VALUE);
         browseButton.getStyleClass().add("main-menu-btn");
+
+        browseButton.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Open Text File");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+
+            // Open the file chooser dialog
+            File selectedFile = fileChooser.showOpenDialog(primaryStage);
+            if (selectedFile != null) {
+                try {
+                    // Read the content of the file
+                    String fileContent = Files.readString(selectedFile.toPath());
+
+                    // Open the EditorUI and pass the file content
+                    EditorUI editor = new EditorUI();
+                    editor.setInitialContent(fileContent); // Pass the file content to EditorUI
+                    editor.start(primaryStage);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                    errorAlert.setTitle("Error");
+                    errorAlert.setHeaderText("Failed to Open File");
+                    errorAlert.setContentText("An error occurred while reading the file. Please try again.");
+                    errorAlert.showAndWait();
+                }
+            }
+        });
 
         browseSection.getChildren().addAll(browseIconStack, browseButton);
 
