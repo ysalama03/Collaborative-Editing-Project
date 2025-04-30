@@ -11,8 +11,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
-
 public class EditorUI extends Application {
 
     private String initialContent = ""; // Field to store the initial content
@@ -83,21 +81,31 @@ public class EditorUI extends Application {
             // Create a RestTemplate instance
             RestTemplate restTemplate = new RestTemplate();
 
+            /////////////////// test connection /////////////////
+            // Test the connection to the server
+            System.out.println("Testing connection to the server...");
+            String testUrl = "http://localhost:8080/test";
+            String testResponse = restTemplate.getForObject(testUrl, String.class);
+            System.out.println("Test Response: " + testResponse);
+            /////////////////////////////////////////////////////
+            
             // Define the server endpoint for creating a new document
             String serverUrl = "http://localhost:8080/createDocument";
 
             // Send a POST request to the server and receive the response as a Map
-            Map<String, String> response = restTemplate.postForObject(serverUrl, null, Map.class);
+            String response = restTemplate.postForObject(serverUrl, null, String.class);
 
             // Extract the viewer and editor codes from the response
-            String viewerCode = response.get("viewerCode");
-            String editorCode = response.get("editorCode");
+            String[] codes = response.split(" ");
+            String viewerCode = codes[0];
+            String editorCode = codes[1];
 
             // Update the labels with the received codes
             viewerCodeLabel.setText("Viewer Code: " + viewerCode);
             editorCodeLabel.setText("Editor Code: " + editorCode);
         } catch (Exception ex) {
             ex.printStackTrace();
+            System.out.println("Error: " + ex.getMessage());
             viewerCodeLabel.setText("Viewer Code: Error");
             editorCodeLabel.setText("Editor Code: Error");
         }

@@ -2,7 +2,7 @@ package com.example.server.config;
 
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,10 +18,12 @@ public class WebRestController {
         // Constructor
     }
 
-    @PostMapping("createDocument")
-    public Map<String, String> createDocument(@RequestBody String documentName) {
+    @PostMapping("/createDocument")
+    public String createDocument() {
         String viewerCode;
         String editorCode;
+
+        System.out.println("Creating document: ");
 
         // Generate unique viewer and editor codes
         do {
@@ -35,10 +37,17 @@ public class WebRestController {
         // Add the generated codes to the map
         generatedCodes.put(viewerCode, editorCode);
 
+        System.out.println("Viewer Code: " + viewerCode);
+        System.out.println("Editor Code: " + editorCode);
+
         // Return the viewer and editor codes as a JSON response
-        Map<String, String> response = new HashMap<>();
-        response.put("viewerCode", viewerCode);
-        response.put("editorCode", editorCode);
+        String response = viewerCode + " " + editorCode;
         return response;
+    }
+
+    @GetMapping("/test")
+    public String testConnection() {
+        System.out.println("Testing connection to the server...");
+        return "Connection successful!";
     }
 }
