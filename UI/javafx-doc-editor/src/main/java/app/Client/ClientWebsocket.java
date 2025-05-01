@@ -69,7 +69,7 @@ public class ClientWebsocket {
     {
         try {
             // Subscribe to the poll topic
-            String topic = "/topic/document/" + DocumentCode;
+            String topic = "/topic/document/" + DocumentCode + "/operation";
             
             stompSession.subscribe(topic, new StompFrameHandler() {
                 @Override
@@ -82,7 +82,12 @@ public class ClientWebsocket {
                 public void handleFrame(@NonNull StompHeaders headers,@NonNull Object payload) {
                     Operation result = (Operation) payload;
                    
-                   crdtManager.handleRemoteOperation(result); 
+                    if (result.getOp().equals("insert")) {
+                        crdtManager.insertRemote(result);
+                    } else if (result.getOp().equals("delete")) {
+                        crdtManager.deleteRemote(result);
+                    }
+                   
                 }
             });
             System.out.println("Subscribed to Document: " + DocumentCode);
@@ -95,9 +100,8 @@ public class ClientWebsocket {
     public void sendOperation(Operation operation, String DocumentCode) {
         try {
             // Send the operation to the server
-            String destination = "/app/document/" + DocumentCode;
+            String destination = "/app/document/" + DocumentCode + "/operation";
             stompSession.send(destination, operation);
-            System.out.println("Sent operation: " + operation);
         } catch (Exception e) {
             System.err.println("Error sending operation: " + e.getMessage());
             e.printStackTrace();

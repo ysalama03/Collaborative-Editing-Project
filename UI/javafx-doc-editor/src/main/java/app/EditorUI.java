@@ -1,6 +1,7 @@
 package app;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Scene;
@@ -12,10 +13,17 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 
 import org.springframework.web.client.RestTemplate;
 
+import app.CRDTfiles.CRDT;
+import app.CRDTfiles.CRDTManager;
 import app.Client.ClientWebsocket;
 
 public class EditorUI extends Application {
@@ -25,6 +33,7 @@ public class EditorUI extends Application {
     String viewerCode;
     String editorCode;
     int userID;
+    CRDTManager crdtManager;
 
     /**
      * Sets the initial content of the editor.
@@ -37,6 +46,7 @@ public class EditorUI extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+
         primaryStage.setTitle("Document Editor");
 
         // Left Panel
@@ -86,11 +96,13 @@ public class EditorUI extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // Fetch Viewer and Editor Codes from the Server
-        fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
         // Connect to websocket
         websocket = new ClientWebsocket();
         websocket.connectToWebSocket();
+        // Fetch Viewer and Editor Codes from the Server
+        fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
+        
+        websocket.subscribeToDocument(viewerCode);
     }
 
     /**
@@ -107,22 +119,38 @@ public class EditorUI extends Application {
         }
 
         Operation op = null;
-        String documentCode = viewerCode; // Replace with actual code logic
+        String documentCode = viewerCode;
 
+        LocalTime now = LocalTime.now();
+        long timeAsLong = now.getHour() * 10000000L + now.getMinute() * 100000 + now.getSecond() * 1000 + now.getNano() / 1_000_000;
         if (newText.length() > oldText.length()) {
             // Insert operation
             String inserted = newText.substring(diffIndex, diffIndex + (newText.length() - oldText.length()));
-            op = new Operation("insert", diffIndex, System.currentTimeMillis(), inserted, -1, -1);
+            op = new Operation("insert", userID, timeAsLong, inserted, -1, -1);
+            crdtManager.insertLocal(inserted.charAt(0), userID, editorCode);
+            Platform.runLater(() -> crdtManager.printCRDT());
+            System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + " " + op.getTimestamp() + " " + op.getParentID() + " " + op.getParentTimestamp());
         } else if (newText.length() < oldText.length()) {
             // Delete operation
-            String deleted = oldText.substring(diffIndex, diffIndex + (oldText.length() - newText.length()));
-            op = new Operation("delete", diffIndex, System.currentTimeMillis(), deleted, -1, -1);
+            int caretPos = diffIndex; // this is where the deletion occurred
+            CRDT.CharacterId idToDelete = crdtManager.getCRDT().getCharacterIdAtPosition(caretPos);
+            
+            if (idToDelete != null) {
+                op = new Operation("delete", userID, timeAsLong, oldText.substring(caretPos, caretPos + 1), -1, -1);
+                crdtManager.deleteLocal(idToDelete, editorCode);
+                Platform.runLater(() -> crdtManager.printCRDT());
+            } else {
+                System.out.println("No character found at position " + caretPos);
+                return;
+            }
+
+            Platform.runLater(() -> crdtManager.printCRDT());
+            System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + " " + op.getTimestamp() + " " + op.getParentID() + " " + op.getParentTimestamp());
         } else {
             // No change or replacement (not handled here)
             return;
         }
 
-        websocket.sendOperation(op, documentCode);
     }
 
     /**
@@ -153,6 +181,9 @@ public class EditorUI extends Application {
             // Update the labels with the received codes
             viewerCodeLabel.setText("Viewer Code: " + viewerCode);
             editorCodeLabel.setText("Editor Code: " + editorCode);
+
+            crdtManager = new CRDTManager(userID, websocket);
+
         } catch (Exception ex) {
             ex.printStackTrace();
             System.out.println("Error: " + ex.getMessage());

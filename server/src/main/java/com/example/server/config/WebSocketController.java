@@ -25,8 +25,15 @@ public class WebSocketController {
     @MessageMapping("/document/{documentId}/operation")
     public void handleOperation(@DestinationVariable String documentId, @Payload Operation operation) {
         
-        crdtManager.handleRemoteOperation(operation); // Apply the operation to the CRDT manager
-        // Broadcast the operation to all connected clients
+        if (operation.getOp().equals("insert")) {
+            // Handle insert operation
+            crdtManager.insertRemote(operation); // Apply the operation to the CRDT manager
+            System.out.println("Insert operation: " + operation.getValue() + " ID = " + operation.getID());
+        } else if (operation.getOp().equals("delete")) {
+            // Handle delete operation
+            crdtManager.deleteRemote(operation); // Apply the operation to the CRDT manager
+            System.out.println("Delete operation: " + operation.getValue() + " ID = " + operation.getID());
+        }
 
         messagingTemplate.convertAndSend("/topic/document/" + documentId + "/operation", operation);
     }
