@@ -19,7 +19,7 @@ public class WebRestController {
     }
 
     @PostMapping("/createDocument")
-    public String createDocument() {
+    public HashMap<String, Object> createDocument() {
         String viewerCode;
         String editorCode;
 
@@ -34,14 +34,23 @@ public class WebRestController {
             editorCode = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         } while (generatedCodes.containsValue(editorCode));
 
+        // Generate a unique user ID starting from 1 and incrementing for each new user
+        int userId = generatedCodes.size() + 1;
+
+        // Include the user ID in the response
+        System.out.println("User ID: " + userId);
+
         // Add the generated codes to the map
         generatedCodes.put(viewerCode, editorCode);
 
         System.out.println("Viewer Code: " + viewerCode);
         System.out.println("Editor Code: " + editorCode);
 
-        // Return the viewer and editor codes as a JSON response
-        String response = viewerCode + " " + editorCode;
+        // Return the user ID, viewer code, and editor code as a JSON response
+        HashMap<String, Object> response = new HashMap<>();
+        response.put("userId", userId);
+        response.put("viewerCode", viewerCode);
+        response.put("editorCode", editorCode);
         return response;
     }
 

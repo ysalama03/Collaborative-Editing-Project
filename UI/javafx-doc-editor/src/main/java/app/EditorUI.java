@@ -1,6 +1,8 @@
 package app;
 
 import javafx.application.Application;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -9,11 +11,20 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+
+import java.util.HashMap;
+
 import org.springframework.web.client.RestTemplate;
+
+import app.Client.ClientWebsocket;
 
 public class EditorUI extends Application {
 
     private String initialContent = ""; // Field to store the initial content
+    private ClientWebsocket websocket;
+    String viewerCode;
+    String editorCode;
+    int userID;
 
     /**
      * Sets the initial content of the editor.
@@ -55,6 +66,15 @@ public class EditorUI extends Application {
         // Set the initial content in the TextArea
         textArea.setText(initialContent);
 
+        // Track previous text for diffing
+        final String[] previousText = {initialContent};
+
+        // Add listener for text changes
+        textArea.textProperty().addListener((observable, oldValue, newValue) -> {
+            handleTextChange(oldValue, newValue);
+            previousText[0] = newValue;
+        });
+
         // Main Layout
         BorderPane mainLayout = new BorderPane();
         mainLayout.setLeft(leftPanel);
@@ -68,6 +88,41 @@ public class EditorUI extends Application {
 
         // Fetch Viewer and Editor Codes from the Server
         fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
+        // Connect to websocket
+        websocket = new ClientWebsocket();
+        websocket.connectToWebSocket();
+    }
+
+    /**
+     * Handles text changes in the editor, forms an Operation, and sends it.
+     */
+    private void handleTextChange(String oldText, String newText) {
+        if (websocket == null) return;
+
+        // Simple diff logic: find first difference
+        int minLen = Math.min(oldText.length(), newText.length());
+        int diffIndex = 0;
+        while (diffIndex < minLen && oldText.charAt(diffIndex) == newText.charAt(diffIndex)) {
+            diffIndex++;
+        }
+
+        Operation op = null;
+        String documentCode = viewerCode; // Replace with actual code logic
+
+        if (newText.length() > oldText.length()) {
+            // Insert operation
+            String inserted = newText.substring(diffIndex, diffIndex + (newText.length() - oldText.length()));
+            op = new Operation("insert", diffIndex, System.currentTimeMillis(), inserted, -1, -1);
+        } else if (newText.length() < oldText.length()) {
+            // Delete operation
+            String deleted = oldText.substring(diffIndex, diffIndex + (oldText.length() - newText.length()));
+            op = new Operation("delete", diffIndex, System.currentTimeMillis(), deleted, -1, -1);
+        } else {
+            // No change or replacement (not handled here)
+            return;
+        }
+
+        websocket.sendOperation(op, documentCode);
     }
 
     /**
@@ -80,25 +135,20 @@ public class EditorUI extends Application {
         try {
             // Create a RestTemplate instance
             RestTemplate restTemplate = new RestTemplate();
-
-            /////////////////// test connection /////////////////
-            // Test the connection to the server
-            System.out.println("Testing connection to the server...");
-            String testUrl = "http://localhost:8080/test";
-            String testResponse = restTemplate.getForObject(testUrl, String.class);
-            System.out.println("Test Response: " + testResponse);
-            /////////////////////////////////////////////////////
             
             // Define the server endpoint for creating a new document
             String serverUrl = "http://localhost:8080/createDocument";
 
             // Send a POST request to the server and receive the response as a Map
-            String response = restTemplate.postForObject(serverUrl, null, String.class);
+            HashMap<String, Object> response = restTemplate.postForObject(serverUrl, null, HashMap.class);
 
             // Extract the viewer and editor codes from the response
-            String[] codes = response.split(" ");
-            String viewerCode = codes[0];
-            String editorCode = codes[1];
+            userID = (int) response.get("userId");
+            viewerCode = (String) response.get("viewerCode");
+            editorCode = (String) response.get("editorCode");
+            System.out.println("User ID: " + userID);
+            System.out.println("Viewer Code: " + viewerCode);
+            System.out.println("Editor Code: " + editorCode);
 
             // Update the labels with the received codes
             viewerCodeLabel.setText("Viewer Code: " + viewerCode);
