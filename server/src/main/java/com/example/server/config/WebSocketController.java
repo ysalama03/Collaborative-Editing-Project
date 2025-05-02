@@ -27,11 +27,11 @@ public class WebSocketController {
         
         if (operation.getOp().equals("insert")) {
             // Handle insert operation
-            crdtManager.insertRemote(operation); // Apply the operation to the CRDT manager
+            crdtManager.insertRemote(documentId, operation); // Apply the operation to the CRDT manager
             System.out.println("Insert operation: " + operation.getValue() + " ID = " + operation.getID());
         } else if (operation.getOp().equals("delete")) {
             // Handle delete operation
-            crdtManager.deleteRemote(operation); // Apply the operation to the CRDT manager
+            crdtManager.deleteRemote(documentId, operation); // Apply the operation to the CRDT manager
             System.out.println("Delete operation: " + operation.getValue() + " ID = " + operation.getID());
         }
 

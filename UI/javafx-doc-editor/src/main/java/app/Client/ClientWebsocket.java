@@ -25,14 +25,17 @@ import org.springframework.messaging.converter.MessageConverter;
 
 import app.Operation;
 import app.CRDTfiles.CRDTManager;
+import app.EditorUI;
 
 public class ClientWebsocket {
     
     StompSession stompSession;
     WebSocketStompClient stompClient;
     CRDTManager crdtManager;
+    EditorUI editorUI;
 
-    public void connectToWebSocket() {
+    public void connectToWebSocket(EditorUI editorUI) {
+        this.editorUI = editorUI;
         try {
         
         
@@ -85,8 +88,10 @@ public class ClientWebsocket {
                    
                     if (result.getOp().equals("insert")) {
                         crdtManager.insertRemote(result);
+                        editorUI.updateDocumentWithString(crdtManager.getDocumentText());
                     } else if (result.getOp().equals("delete")) {
                         crdtManager.deleteRemote(result);
+                        editorUI.updateDocumentWithString(crdtManager.getDocumentText());
                     }
                    
                 }

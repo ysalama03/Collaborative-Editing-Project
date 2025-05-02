@@ -5,7 +5,7 @@ import app.Operation;
 import app.Client.ClientWebsocket;
 
 public class CRDTManager {
-    private final CRDT crdt = new CRDT();
+    private final CRDT crdt;
     private final int localUserId;
     StompSession stompSession;
     ClientWebsocket clientWebsocket;
@@ -13,6 +13,38 @@ public class CRDTManager {
     public CRDTManager(int localUserId, ClientWebsocket clientWebsocket) {
         this.clientWebsocket = clientWebsocket;
         this.localUserId = localUserId;
+        this.crdt = new CRDT();
+    }
+
+    public CRDTManager(int localUserId, ClientWebsocket clientWebsocket, String text) {
+        this.clientWebsocket = clientWebsocket;
+        this.localUserId = localUserId;
+        this.crdt = new CRDT();
+
+        for (int i = 0; i < text.length(); i++) {
+            char value = text.charAt(i);
+            long timestamp = System.currentTimeMillis() + i; // Ensure unique timestamp for each character
+            CRDT.CharacterId id = new CRDT.CharacterId(timestamp, localUserId);
+            CRDT.CharacterId parentId = (i > 0) 
+                ? new CRDT.CharacterId(timestamp - 1, localUserId) 
+                : null;
+
+            Operation op = new Operation();
+            op.setOp("insert");
+            op.setID(id.userId);
+            op.setTimestamp(id.timestamp);
+            op.setValue(String.valueOf(value));
+
+            if (parentId != null) {
+                op.setParentID(parentId.userId);
+                op.setParentTimestamp(parentId.timestamp);
+            } else {
+                op.setParentID(-1);
+                op.setParentTimestamp(-1);
+            }
+
+            insertRemote(op);
+        }
     }
 
     /**

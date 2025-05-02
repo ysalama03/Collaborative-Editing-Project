@@ -2,8 +2,6 @@ package app;
 
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -12,12 +10,9 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 
 import org.springframework.web.client.RestTemplate;
@@ -32,8 +27,11 @@ public class EditorUI extends Application {
     private ClientWebsocket websocket;
     String viewerCode;
     String editorCode;
+    String sessionCode;
     int userID;
     CRDTManager crdtManager;
+    Boolean isNewSession = true; // Flag to check if it's a new session
+    Boolean isEditor = true; // Flag to check if it's an editor
 
     /**
      * Sets the initial content of the editor.
@@ -42,6 +40,15 @@ public class EditorUI extends Application {
      */
     public void setInitialContent(String content) {
         this.initialContent = content;
+    }
+
+    public void setExistingCRDT(char role, int userID, String text, String documentCode) {
+        
+        this.isEditor = role == 'E'; // Set the editor role based on the parameter
+        this.userID = userID;
+        isNewSession = false; // Set to false if an existing CRDT is provided
+        sessionCode = documentCode;
+        initialContent = text; // Set the initial content to the provided text
     }
 
     @Override
@@ -81,9 +88,15 @@ public class EditorUI extends Application {
 
         // Add listener for text changes
         textArea.textProperty().addListener((observable, oldValue, newValue) -> {
-            handleTextChange(oldValue, newValue);
-            previousText[0] = newValue;
+            if (isEditor) {
+                handleTextChange(oldValue, newValue);
+                previousText[0] = newValue;
+            } else {
+                // Revert text if a viewer tries to change it
+                Platform.runLater(() -> textArea.setText(previousText[0]));
+            }
         });
+        
 
         // Main Layout
         BorderPane mainLayout = new BorderPane();
@@ -98,11 +111,19 @@ public class EditorUI extends Application {
 
         // Connect to websocket
         websocket = new ClientWebsocket();
-        websocket.connectToWebSocket();
-        // Fetch Viewer and Editor Codes from the Server
-        fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
+        websocket.connectToWebSocket(this);
+
+        if (isNewSession) {
+            // Fetch Viewer and Editor Codes from the Server
+            fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
+            //websocket.subscribeToDocument(viewerCode, crdtManager);
+            websocket.subscribeToDocument(editorCode, crdtManager);
+        } else {
+            crdtManager = new CRDTManager(userID, websocket, initialContent);
+            setInitialContent(crdtManager.getDocumentText());
+            websocket.subscribeToDocument(sessionCode, crdtManager);
+        }
         
-        websocket.subscribeToDocument(viewerCode, crdtManager);
     }
 
     /**
@@ -151,6 +172,29 @@ public class EditorUI extends Application {
             return;
         }
 
+    }
+
+    /**
+     * Updates the document UI and CRDT with the given string.
+     * @param content The new document content to display.
+     */
+    public void updateDocumentWithString(String content) {
+        this.initialContent = content;
+        // Update the TextArea if it exists
+        Platform.runLater(() -> {
+            // Find the TextArea in the scene and update it
+            Scene scene = Stage.getWindows().stream()
+                .filter(Window::isShowing)
+                .findFirst()
+                .map(Window::getScene)
+                .orElse(null);
+            if (scene != null) {
+                TextArea textArea = (TextArea) scene.lookup(".text-area");
+                if (textArea != null) {
+                    textArea.setText(content);
+                }
+            }
+        });
     }
 
     /**

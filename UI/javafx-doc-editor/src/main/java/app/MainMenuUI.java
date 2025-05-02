@@ -16,6 +16,11 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.HashMap;
+
+import org.springframework.web.client.RestTemplate;
+
+import app.CRDTfiles.CRDT;
 
 public class MainMenuUI {
 
@@ -105,8 +110,57 @@ public class MainMenuUI {
         sessionField.setPromptText("Enter code");
         sessionField.setPrefWidth(120);
 
+        
         Button joinButton = new Button("Join");
         joinButton.getStyleClass().add("main-menu-btn");
+
+        joinButton.setOnAction(e -> {
+            String sessionCode = sessionField.getText();
+            if (sessionCode.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning");
+                alert.setHeaderText("Session Code Required");
+                alert.setContentText("Please enter a session code to join.");
+                alert.showAndWait();
+            } else {
+
+                // Create a RestTemplate instance
+                RestTemplate restTemplate = new RestTemplate();
+                
+                // Define the server endpoint for creating a new document
+                String serverUrl = "http://localhost:8080/JoinDocument";
+
+                // Send a POST request to the server and receive the response as a Map
+                HashMap<String, String> response = restTemplate.getForObject(serverUrl + "/" + sessionCode, HashMap.class);
+
+                if (response == null) {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error");
+                    alert.setHeaderText("Failed to Join Session");
+                    alert.setContentText("An error occurred while joining the session. Please check the code and try again.");
+                    alert.showAndWait();
+                    return;
+                }
+
+                // Extract userId and role from the response
+                String key = response.keySet().iterator().next();
+                char role = key.charAt(0); // First character indicates role (V for viewer, E for editor)
+                int userId = Integer.parseInt(key.substring(1)); // Remaining part is the userId
+
+                String text = response.values().iterator().next(); 
+
+                System.out.println("User ID: " + userId);
+                System.out.println("CRDT: " + text);
+
+                EditorUI editor = new EditorUI();
+                editor.setExistingCRDT(role, userId, text, sessionCode); // Replace null with actual CRDT conversion if needed
+                try {
+                    editor.start(primaryStage);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
 
         HBox joinBox = new HBox(5, sessionField, joinButton);
         joinBox.setAlignment(Pos.CENTER);

@@ -1,13 +1,13 @@
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Client\Client.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Client\ClientWebsocket.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\CRDTfiles\CRDT.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\CRDTfiles\CRDTManager.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\EditorUI.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\DocumentIcon.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\DocumentPlusIcon.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\RedoIcon.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\UndoIcon.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\UserIcon.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Main.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\MainMenuUI.java
-C:\Users\Youssef\University\Senior 1\APT\Project\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Operation.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Client\Client.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Client\ClientWebsocket.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\CRDTfiles\CRDT.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\CRDTfiles\CRDTManager.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\EditorUI.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\DocumentIcon.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\DocumentPlusIcon.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\RedoIcon.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\UndoIcon.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\icons\UserIcon.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Main.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\MainMenuUI.java
+D:\Collaborative-Editing-Project\UI\javafx-doc-editor\src\main\java\app\Operation.java
