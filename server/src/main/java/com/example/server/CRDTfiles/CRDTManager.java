@@ -31,7 +31,7 @@ public class CRDTManager {
         System.out.println("Editor Code: " + editorCode);
 
         // Generate a unique user ID starting from 1 and incrementing for each new user
-        userId = generatedCodes.size() + 1;
+        userId++;
         generatedCodes.put(docID, List.of(viewerCode, editorCode));
         crdtMap.put(docID, new CRDT()); // Create a new CRDT instance for the document
         docID++; // Increment the document ID for the next document
@@ -50,6 +50,9 @@ public class CRDTManager {
         for (Map.Entry<Integer, List<String>> entry : generatedCodes.entrySet()) {
             List<String> codes = entry.getValue();
             if (codes.contains(documentCode)) {
+
+                userId++;
+
                 if (codes.get(0).equals(documentCode)) {
                     // Viewer code found
                     System.out.println("Viewer code found: " + documentCode);
@@ -70,7 +73,6 @@ public class CRDTManager {
                     return response;
                 }
 
-                userId++;
             }
         }
 
@@ -82,6 +84,7 @@ public class CRDTManager {
 
     public CRDTManager(int localUserId) {
         docID = 0; // Initialize document ID
+        userId = 0; // Initialize user ID
         this.localUserId = localUserId;
         this.network = new CRDTNetworkService(new NetworkHandler() {
             @Override

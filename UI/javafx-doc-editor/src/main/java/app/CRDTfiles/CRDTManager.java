@@ -191,4 +191,8 @@ public class CRDTManager {
             System.out.println("Delete failed: ID not found or already deleted: " + id);
         }
     }
+
+    public int getLocalUserId() {
+        return localUserId;
+    }
 }

@@ -85,13 +85,16 @@ public class ClientWebsocket {
                 @Override
                 public void handleFrame(@NonNull StompHeaders headers,@NonNull Object payload) {
                     Operation result = (Operation) payload;
-                   
-                    if (result.getOp().equals("insert")) {
-                        crdtManager.insertRemote(result);
-                        editorUI.updateDocumentWithString(crdtManager.getDocumentText());
-                    } else if (result.getOp().equals("delete")) {
-                        crdtManager.deleteRemote(result);
-                        editorUI.updateDocumentWithString(crdtManager.getDocumentText());
+
+                    System.out.println("Received operation: " + result.getOp() + " from user: " + result.getID() + " with value: " + result.getValue());
+                    if (result.getID() != crdtManager.getLocalUserId()) {
+                        if (result.getOp().equals("insert")) {
+                            crdtManager.insertRemote(result);
+                            editorUI.updateDocumentWithString(crdtManager.getDocumentText());
+                        } else if (result.getOp().equals("delete")) {
+                            crdtManager.deleteRemote(result);
+                            editorUI.updateDocumentWithString(crdtManager.getDocumentText());
+                        }
                     }
                    
                 }
