@@ -102,7 +102,7 @@ public class EditorUI extends Application {
         // Fetch Viewer and Editor Codes from the Server
         fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
         
-        websocket.subscribeToDocument(viewerCode);
+        websocket.subscribeToDocument(viewerCode, crdtManager);
     }
 
     /**
@@ -127,7 +127,7 @@ public class EditorUI extends Application {
             // Insert operation
             String inserted = newText.substring(diffIndex, diffIndex + (newText.length() - oldText.length()));
             op = new Operation("insert", userID, timeAsLong, inserted, -1, -1);
-            crdtManager.insertLocal(inserted.charAt(0), userID, editorCode);
+            crdtManager.insertLocalAtPosition(inserted.charAt(0), diffIndex, editorCode);
             Platform.runLater(() -> crdtManager.printCRDT());
             System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + " " + op.getTimestamp() + " " + op.getParentID() + " " + op.getParentTimestamp());
         } else if (newText.length() < oldText.length()) {
@@ -137,7 +137,7 @@ public class EditorUI extends Application {
             
             if (idToDelete != null) {
                 op = new Operation("delete", userID, timeAsLong, oldText.substring(caretPos, caretPos + 1), -1, -1);
-                crdtManager.deleteLocal(idToDelete, editorCode);
+                crdtManager.deleteLocalAtPosition(diffIndex, documentCode);
                 Platform.runLater(() -> crdtManager.printCRDT());
             } else {
                 System.out.println("No character found at position " + caretPos);

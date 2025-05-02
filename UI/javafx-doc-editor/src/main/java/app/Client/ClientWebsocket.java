@@ -65,8 +65,9 @@ public class ClientWebsocket {
         }
     }
 
-    public void subscribeToDocument(String DocumentCode)
+    public void subscribeToDocument(String DocumentCode, CRDTManager crdtManager)
     {
+        this.crdtManager = crdtManager;
         try {
             // Subscribe to the poll topic
             String topic = "/topic/document/" + DocumentCode + "/operation";

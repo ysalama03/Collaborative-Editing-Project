@@ -14,7 +14,9 @@ public class CRDT {
 
         @Override
         public int compareTo(CharacterId o) {
-            int cmp = Long.compare(this.timestamp, o.timestamp);
+            // Modified ordering: Descending timestamp order (newer timestamps first)
+            // This implements the ordering rule from the slides
+            int cmp = Long.compare(o.timestamp, this.timestamp);
             return cmp != 0 ? cmp : Integer.compare(this.userId, o.userId);
         }
 
@@ -53,6 +55,7 @@ public class CRDT {
 
         public void addChild(Node child) {
             int i = 0;
+            // Modified ordering: CharacterId.compareTo has been updated so this works correctly
             while (i < children.size() && children.get(i).id.compareTo(child.id) < 0) {
                 i++;
             }
@@ -62,32 +65,82 @@ public class CRDT {
 
     private final Node root = new Node(null, null, '\0', false);
     public final Map<CharacterId, Node> nodeMap = new HashMap<>();
-    public final List<Node> visibleNodes = new ArrayList<>();
+    private final List<Node> flatOrderedNodes = new ArrayList<>();
 
     public CRDT() {
         nodeMap.put(null, root);
     }
 
-    public void insert(CharacterId id, char value) {
-        CharacterId parentId = findInsertParent(id);
+    /**
+     * Insert a character at a specific position in the document
+     * @param id The unique identifier for the new character
+     * @param value The character value to insert
+     * @param position The position at which to insert (0 = beginning)
+     */
+    public void insert(CharacterId id, char value, int position) {
+        // Find the parent node based on position
+        CharacterId parentId = getParentIdForPosition(position);
+        
+        // Create and store the new node
         Node newNode = new Node(id, parentId, value, false);
         nodeMap.put(id, newNode);
-
+        
+        // Add the new node to its parent
         Node parentNode = nodeMap.get(parentId);
         parentNode.addChild(newNode);
+        
+        // Invalidate the cached flattened structure
+        flatOrderedNodes.clear();
+    }
+    
+    /**
+     * Get the parent ID for inserting at a specific position
+     */
+    private CharacterId getParentIdForPosition(int position) {
+        if (position <= 0) {
+            // If inserting at the beginning, parent is root (null)
+            return null;
+        }
+        
+        // Get all visible characters in order
+        List<Node> visibleNodes = getOrderedVisibleNodes();
+        
+        // If position is beyond the end, use the last character as parent
+        if (position >= visibleNodes.size()) {
+            return visibleNodes.isEmpty() ? null : visibleNodes.get(visibleNodes.size() - 1).id;
+        }
+        
+        // Otherwise return the ID of the character at position-1
+        return visibleNodes.get(position - 1).id;
     }
 
-    private CharacterId findInsertParent(CharacterId id) {
-        CharacterId best = null;
-        for (CharacterId existingId : nodeMap.keySet()) {
-            if (existingId == null) continue;
-            if (existingId.compareTo(id) < 0) {
-                if (best == null || existingId.compareTo(best) > 0) {
-                    best = existingId;
-                }
-            }
+    /**
+     * Get all visible nodes in document order
+     */
+    private List<Node> getOrderedVisibleNodes() {
+        if (!flatOrderedNodes.isEmpty()) {
+            return flatOrderedNodes;
         }
-        return best;
+        
+        List<Node> result = new ArrayList<>();
+        flattenTree(root, result);
+        
+        this.flatOrderedNodes.clear();
+        this.flatOrderedNodes.addAll(result);
+        
+        return result;
+    }
+    
+    /**
+     * Recursively flatten the tree into a list of visible nodes
+     */
+    private void flattenTree(Node node, List<Node> result) {
+        for (Node child : node.children) {
+            if (!child.isDeleted) {
+                result.add(child);
+            }
+            flattenTree(child, result);
+        }
     }
 
     public boolean delete(CharacterId id) {
@@ -96,40 +149,24 @@ public class CRDT {
             return false; // not found or already deleted
         }
         node.isDeleted = true;
+        // Invalidate the cached flattened structure
+        flatOrderedNodes.clear();
         return true;
     }
 
     public String getVisibleString() {
         StringBuilder sb = new StringBuilder();
-        traverseVisible(root, sb);
+        for (Node node : getOrderedVisibleNodes()) {
+            sb.append(node.value);
+        }
         return sb.toString();
     }
 
-    private void traverseVisible(Node node, StringBuilder sb) {
-        for (Node child : node.children) {
-            if (!child.isDeleted) {
-                sb.append(child.value);
-            }
-            traverseVisible(child, sb);
-        }
-    }
-
     public CharacterId getCharacterIdAtPosition(int pos) {
-        List<CharacterId> visibleIds = new ArrayList<>();
-        collectVisibleIds(root, visibleIds);
-        if (pos < 0 || pos >= visibleIds.size()) return null;
-        return visibleIds.get(pos);
+        List<Node> visibleNodes = getOrderedVisibleNodes();
+        if (pos < 0 || pos >= visibleNodes.size()) return null;
+        return visibleNodes.get(pos).id;
     }
-    
-    private void collectVisibleIds(Node node, List<CharacterId> result) {
-        for (Node child : node.children) {
-            if (!child.isDeleted) {
-                result.add(child.id);
-            }
-            collectVisibleIds(child, result);
-        }
-    }
-    
 
     public void printTree() {
         printSubtree(root, 0);
@@ -140,7 +177,6 @@ public class CRDT {
         if (node != root) {
             System.out.println(indent + "- " + node.value + " " + node.id + (node.isDeleted ? " (deleted)" : ""));
         }
-        node.children.sort(Comparator.comparing(n -> n.id));
         for (Node child : node.children) {
             printSubtree(child, depth + 1);
         }

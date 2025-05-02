@@ -14,7 +14,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <javafx-sdk>D:/openjfx-17.0.15_windows-x64_bin-sdk/javafx-sdk-17.0.15</javafx-sdk>
+        <javafx-sdk>C:/javafx-sdk-17.0.15</javafx-sdk> 
         <java.version>11</java.version>
         <javafx.version>17.0.1</javafx.version>
     </properties>
