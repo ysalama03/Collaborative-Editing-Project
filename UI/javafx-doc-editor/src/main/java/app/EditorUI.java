@@ -124,7 +124,7 @@ public class EditorUI extends Application {
             File file = fileChooser.showSaveDialog(primaryStage);
             if (file != null) {
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-                    writer.write(initialContent);
+                    writer.write(crdtManager.getDocumentText());
                     System.out.println("Document saved to: " + file.getAbsolutePath());
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -208,7 +208,7 @@ public class EditorUI extends Application {
                 int position = diffIndex + i; // Calculate the correct position for each character
                 crdtManager.insertLocalAtPosition(c, position, sessionCode);
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(2);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     System.err.println("Thread was interrupted: " + e.getMessage());
@@ -225,7 +225,7 @@ public class EditorUI extends Application {
                 // Always delete at diffIndex since positions shift after each deletion
                 crdtManager.deleteLocalAtPosition(diffIndex, sessionCode);
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(2);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     System.err.println("Thread was interrupted: " + e.getMessage());

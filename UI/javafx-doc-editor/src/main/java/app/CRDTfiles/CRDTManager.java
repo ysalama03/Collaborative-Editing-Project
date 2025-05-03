@@ -27,6 +27,13 @@ public class CRDTManager {
         System.out.println("Text length: " + text.length());
         System.out.println("Text: " + text);
         for (int i = 0; i < text.length(); i++) {
+            try {
+                Thread.sleep(2);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.err.println("Thread was interrupted: " + e.getMessage());
+            }
+
             char value = text.charAt(i);
             long timestamp = System.currentTimeMillis() + i; // Ensure unique timestamp for each character
             CRDT.CharacterId id = new CRDT.CharacterId(timestamp, localUserId);

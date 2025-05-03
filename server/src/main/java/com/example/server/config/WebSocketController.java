@@ -63,12 +63,12 @@ public class WebSocketController {
         System.out.println("Received cursor positions for session " + sessionCode + ": " + cursorPositions);
 
         // Broadcast the cursor positions to all users in the session
-        messagingTemplate.convertAndSend("/topic/session/" + sessionCode + "/cursor", cursorPositions);
-
         String viewerCode = crdtManager.getViewerCode(sessionCode);
 
+        messagingTemplate.convertAndSend("/topic/session/" + sessionCode + "/cursor", cursorPositions);
+        messagingTemplate.convertAndSend("/topic/session/" + viewerCode + "/cursor", cursorPositions);
+
         System.out.println("Broadcasted cursor positions to session " + sessionCode);
-        System.out.println("Broadcasted cursor positions to session " + viewerCode);
 
     }
 
