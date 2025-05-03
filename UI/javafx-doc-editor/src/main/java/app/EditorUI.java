@@ -141,7 +141,9 @@ public class EditorUI extends Application {
         if (isNewSession) {
             fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
             websocket.subscribeToDocument(editorCode, crdtManager);
-            websocket.subscribeToActiveUsers(editorCode, activeUsersList); // Subscribe to active users
+            websocket.subscribeToActiveUsers(userID, editorCode, activeUsersList); // Subscribe to active users
+            websocket.subscribeToActiveUsers(userID, viewerCode, activeUsersList); // Subscribe to active users
+            websocket.sendUserId(userID, editorCode);
             sessionCode = editorCode;
         } else {
             crdtManager = new CRDTManager(userID, websocket, initialContent, false, sessionCode);
@@ -152,10 +154,9 @@ public class EditorUI extends Application {
             }
             setInitialContent(crdtManager.getDocumentText());
             websocket.subscribeToDocument(sessionCode, crdtManager);
-            websocket.subscribeToActiveUsers(sessionCode, activeUsersList); // Subscribe to active users
+            websocket.subscribeToActiveUsers(userID, sessionCode, activeUsersList); // Subscribe to active users
+            websocket.sendUserId(userID, sessionCode);
         }
-
-        activeUsersList.getItems().addAll("User" + userID + "(you)"); // Add the current user to the list
 
     }
 

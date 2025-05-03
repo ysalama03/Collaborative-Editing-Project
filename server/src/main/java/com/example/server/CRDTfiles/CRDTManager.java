@@ -3,6 +3,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.example.server.Operation;
 
@@ -12,6 +13,7 @@ public class CRDTManager {
     private final int localUserId;
     // Data structure to store all generated viewer and editor code pairs
     private final Map<Integer, List<String>> generatedCodes = new HashMap<>();
+    private final Map<Integer, Integer> userIds = new HashMap<>(); // Map to store user IDs for each document
     int docID; // Document ID to be used for each new document
     int userId;
 
@@ -31,16 +33,18 @@ public class CRDTManager {
         System.out.println("Editor Code: " + editorCode);
 
         // Generate a unique user ID starting from 1 and incrementing for each new user
-        userId++;
+        
         generatedCodes.put(docID, List.of(viewerCode, editorCode));
         crdtMap.put(docID, new CRDT()); // Create a new CRDT instance for the document
-        docID++; // Increment the document ID for the next document
+        userIds.put(userId, docID); // Store the user ID for the documentS
 
         HashMap<String, Object> response = new HashMap<>();
         response.put("userId", userId);
         response.put("viewerCode", viewerCode);
         response.put("editorCode", editorCode);
 
+        userId++;
+        docID++; // Increment the document ID for the next document
         return response;
     }
 
@@ -51,8 +55,6 @@ public class CRDTManager {
             List<String> codes = entry.getValue();
             if (codes.contains(documentCode)) {
 
-                userId++;
-
                 if (codes.get(0).equals(documentCode)) {
                     // Viewer code found
                     System.out.println("Viewer code found: " + documentCode);
@@ -61,6 +63,8 @@ public class CRDTManager {
                     HashMap<String, String> response = new HashMap<>();
                     String key = "V" + userId;
                     response.put(key, crdt != null ? crdt.getVisibleString() : "");
+                    userIds.put(userId, entry.getKey()); // Store the user ID for the document
+                    userId++;
                     return response;
                 } else if (codes.get(1).equals(documentCode)) {
                     // Editor code found
@@ -70,9 +74,11 @@ public class CRDTManager {
                     HashMap<String, String> response = new HashMap<>();
                     String key = "E" + userId;
                     response.put(key, crdt != null ? crdt.getVisibleString() : "");
+                    userIds.put(userId, entry.getKey()); // Store the user ID for the documentS
+                    userId++;
                     return response;
                 }
-
+   
             }
         }
 
@@ -83,8 +89,8 @@ public class CRDTManager {
     }
 
     public CRDTManager(int localUserId) {
-        docID = 0; // Initialize document ID
-        userId = 0; // Initialize user ID
+        docID = 1; // Initialize document ID
+        userId = 1; // Initialize user ID
         this.localUserId = localUserId;
         this.network = new CRDTNetworkService(new NetworkHandler() {
             @Override
@@ -197,14 +203,20 @@ public class CRDTManager {
         return null; // Document code not found
     }
 
-    public int getUserId(String sessionCode) {
-        
-        for (Map.Entry<Integer, List<String>> entry : generatedCodes.entrySet()) {
-            List<String> codes = entry.getValue();
-            if (codes.contains(sessionCode)) {
-                return entry.getKey(); // Return the user ID
-            }
-        }
-        return -1; // Session code not found
+    public List<Integer> getUserIds(String sessionCode) {
+        // Find the docID associated with the session code in the generatedCodes map
+        int documentKey = generatedCodes.entrySet().stream()
+            .filter(entry -> entry.getValue().contains(sessionCode))
+            .map(Map.Entry::getKey)
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Session code not found"));
+
+        // Find all user IDs that have this docID as a value in the userIds map
+        List<Integer> userIdsForDocument = userIds.entrySet().stream()
+            .filter(entry -> entry.getValue() == documentKey)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+
+        return userIdsForDocument;
     }
 }

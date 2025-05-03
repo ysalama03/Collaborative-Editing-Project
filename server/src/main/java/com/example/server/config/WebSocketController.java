@@ -1,5 +1,6 @@
 package com.example.server.config;
 
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -46,10 +47,14 @@ public class WebSocketController {
     public void handleActiveUsers(@DestinationVariable String sessionCode, @Payload String userId) {
         // Broadcast the active users to all subscribers of the session topic
         String viewerCode = crdtManager.getViewerCode(sessionCode);
-        int crdtuserId = crdtManager.getUserId(sessionCode);
 
-        messagingTemplate.convertAndSend("/topic/session/" + viewerCode + "/users", crdtuserId);
-        messagingTemplate.convertAndSend("/topic/session/" + sessionCode + "/users", crdtuserId);
+        System.out.println("User ID: " + userId + " joined session: " + sessionCode);
+
+        List<Integer> userIds = crdtManager.getUserIds(sessionCode);
+        System.out.println("Active users in session " + sessionCode + ": " + userIds);
+
+        messagingTemplate.convertAndSend("/topic/session/" + viewerCode + "/users", userIds);
+        messagingTemplate.convertAndSend("/topic/session/" + sessionCode + "/users", userIds);
     }
 
 

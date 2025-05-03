@@ -21,8 +21,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.messaging.converter.CompositeMessageConverter;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.converter.MessageConverter;
+import org.springframework.messaging.converter.StringMessageConverter;
 
 import app.Operation;
 import app.CRDTfiles.CRDTManager;
@@ -44,28 +46,27 @@ public class ClientWebsocket {
         this.editorUI = editorUI;
         try {
             List<Transport> transports = Collections.singletonList(new WebSocketTransport(new StandardWebSocketClient()));
-            SockJsClient sockJsClient = null;
-            List<MessageConverter> converters = new ArrayList<>();   
-
-            ///////////////
-            sockJsClient = new SockJsClient(transports);
+            SockJsClient sockJsClient = new SockJsClient(transports);
             stompClient = new WebSocketStompClient(sockJsClient);
-            
-            converters.add(new MappingJackson2MessageConverter());
-            stompClient.setMessageConverter(new MappingJackson2MessageConverter());
+
+            // Add both StringMessageConverter and MappingJackson2MessageConverter
+            List<MessageConverter> converters = new ArrayList<>();
+            converters.add(new StringMessageConverter()); // For plain text messages
+            converters.add(new MappingJackson2MessageConverter()); // For JSON messages
+            stompClient.setMessageConverter(new CompositeMessageConverter(converters));
 
             // Connect to the server
             String url = "ws://localhost:8080/ws";
             stompSession = stompClient.connectAsync(url, new StompSessionHandlerAdapter() {
                 @Override
-                public void handleException(@NonNull StompSession session,@NonNull StompCommand command, @NonNull StompHeaders headers,@NonNull byte[] payload, @NonNull Throwable exception) {
-                        System.err.println("Error in STOMP session: " + exception.getMessage());
+                public void handleException(@NonNull StompSession session, @NonNull StompCommand command,
+                                            @NonNull StompHeaders headers, @NonNull byte[] payload, @NonNull Throwable exception) {
+                    System.err.println("Error in STOMP session: " + exception.getMessage());
                     exception.printStackTrace();
                 }
             }).get();
 
             System.out.println("Connected to WebSocket server at " + url);
-            //////////////// 
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -114,7 +115,7 @@ public class ClientWebsocket {
         }
     }
 
-    public void subscribeToActiveUsers(String sessionCode, ListView<String> activeUsersList) {
+    public void subscribeToActiveUsers(int userID, String sessionCode, ListView<String> activeUsersList) {
         try {
             String topic = "/topic/session/" + sessionCode + "/users";
 
@@ -122,18 +123,24 @@ public class ClientWebsocket {
                 @Override
                 @NonNull
                 public Type getPayloadType(@NonNull StompHeaders headers) {
-                    return String.class; // Assume the server sends the user ID as a string
+                    return List.class; // Expecting a List<Integer> payload
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public void handleFrame(@NonNull StompHeaders headers, @NonNull Object payload) {
-                    String newUserId = (String) payload;
+                    List<Integer> userIds = (List<Integer>) payload;
+
+                    System.out.println("Received active user IDs: " + userIds);
 
                     // Update the active users list in the UI
                     Platform.runLater(() -> {
-                        if (!activeUsersList.getItems().contains(newUserId)) {
-                            activeUsersList.getItems().add(newUserId);
-                            System.out.println("User joined: " + newUserId);
+                        for (Integer id : userIds) {
+                            String userIdString = "User" + id;
+                            if (!activeUsersList.getItems().contains(userIdString)) {
+                                activeUsersList.getItems().add(userIdString);
+                                System.out.println("User joined: " + userIdString);
+                            }
                         }
                     });
                 }
@@ -153,6 +160,17 @@ public class ClientWebsocket {
             stompSession.send(destination, operation);
         } catch (Exception e) {
             System.err.println("Error sending operation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public void sendUserId(int userId, String sessionCode) {
+        try {
+            // Send the user ID to the server
+            String destination = "/app/session/" + sessionCode + "/users";
+            stompSession.send(destination, String.valueOf(userId));
+        } catch (Exception e) {
+            System.err.println("Error sending user ID: " + e.getMessage());
             e.printStackTrace();
         }
     }
