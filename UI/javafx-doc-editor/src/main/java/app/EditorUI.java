@@ -10,9 +10,14 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.LocalTime;
 import java.util.HashMap;
 
@@ -33,6 +38,7 @@ public class EditorUI extends Application {
     CRDTManager crdtManager;
     Boolean isNewSession = true; // Flag to check if it's a new session
     Boolean isEditor = true; // Flag to check if it's an editor
+    Boolean isImported = false; // Flag to check if the document is imported
 
     // Define the listener as a field
     private ChangeListener<String> textChangeListener;
@@ -46,6 +52,10 @@ public class EditorUI extends Application {
         this.initialContent = content;
     }
 
+    public void setImported() {
+        this.isImported = true; // Set the imported flag
+    }
+
     public void setExistingCRDT(char role, int userID, String text, String documentCode) {
         
         this.isEditor = role == 'E'; // Set the editor role based on the parameter
@@ -57,7 +67,6 @@ public class EditorUI extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-
         primaryStage.setTitle("Document Editor");
 
         // Left Panel
@@ -75,7 +84,6 @@ public class EditorUI extends Application {
         Button copyEditorCodeButton = new Button("Copy");
 
         ListView<String> activeUsersList = new ListView<>();
-        activeUsersList.getItems().addAll("User1", "User2", "(you)", "User3");
 
         leftPanel.getChildren().addAll(undoButton, redoButton, exportButton, viewerCodeLabel, copyViewerCodeButton, editorCodeLabel, copyEditorCodeButton, activeUsersList);
 
@@ -100,33 +108,55 @@ public class EditorUI extends Application {
         // Add the listener to the TextArea
         textArea.textProperty().addListener(textChangeListener);
 
+        // Add functionality to the Export button
+        exportButton.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Save Document");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+            File file = fileChooser.showSaveDialog(primaryStage);
+            if (file != null) {
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                    writer.write(initialContent);
+                    System.out.println("Document saved to: " + file.getAbsolutePath());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.err.println("Error saving the document: " + e.getMessage());
+                }
+            }
+        });
+
         // Main Layout
         BorderPane mainLayout = new BorderPane();
         mainLayout.setLeft(leftPanel);
         mainLayout.setCenter(textArea);
 
         Scene scene = new Scene(mainLayout, 800, 600);
-        scene.getStylesheets().add(getClass().getResource("/styles/app.css").toExternalForm());
-
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // Connect to websocket
+        // Connect to WebSocket
         websocket = new ClientWebsocket();
         websocket.connectToWebSocket(this);
 
         if (isNewSession) {
-            // Fetch Viewer and Editor Codes from the Server
             fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
-            //websocket.subscribeToDocument(viewerCode, crdtManager);
             websocket.subscribeToDocument(editorCode, crdtManager);
-            sessionCode = editorCode; // Set the session code to the editor code
+            websocket.subscribeToActiveUsers(editorCode, activeUsersList); // Subscribe to active users
+            sessionCode = editorCode;
         } else {
-            crdtManager = new CRDTManager(userID, websocket, initialContent);
+            crdtManager = new CRDTManager(userID, websocket, initialContent, false, sessionCode);
+            if (isEditor) {
+                editorCodeLabel.setText("Editor Code: " + sessionCode);
+            } else {
+                viewerCodeLabel.setText("Viewer Code: " + sessionCode);
+            }
             setInitialContent(crdtManager.getDocumentText());
             websocket.subscribeToDocument(sessionCode, crdtManager);
+            websocket.subscribeToActiveUsers(sessionCode, activeUsersList); // Subscribe to active users
         }
-        
+
+        activeUsersList.getItems().addAll("User" + userID + "(you)"); // Add the current user to the list
+
     }
 
     /**
@@ -181,13 +211,13 @@ public class EditorUI extends Application {
                                      now.getSecond() * 1000 + now.getNano() / 1_000_000 + i;
                     
                     Operation op = new Operation("delete", userID, timeAsLong, 
-                                              String.valueOf(oldText.charAt(diffIndex + i)), -1, -1);
+                    String.valueOf(oldText.charAt(diffIndex + i)), -1, -1);
                     
                     crdtManager.deleteLocalAtPosition(diffIndex, sessionCode);
                     
                     System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + 
-                                      " " + op.getTimestamp() + " " + op.getParentID() + 
-                                      " " + op.getParentTimestamp());
+                    " " + op.getTimestamp() + " " + op.getParentID() + 
+                    " " + op.getParentTimestamp());
                 } else {
                     System.out.println("No character found at position " + diffIndex);
                     break;
@@ -265,7 +295,13 @@ public void updateDocumentWithString(String content) {
             viewerCodeLabel.setText("Viewer Code: " + viewerCode);
             editorCodeLabel.setText("Editor Code: " + editorCode);
 
-            crdtManager = new CRDTManager(userID, websocket);
+            if (isImported) {
+                crdtManager = new CRDTManager(userID, websocket, initialContent, true, editorCode);   
+            }
+            else
+            {
+                crdtManager = new CRDTManager(userID, websocket);
+            }
 
         } catch (Exception ex) {
             ex.printStackTrace();

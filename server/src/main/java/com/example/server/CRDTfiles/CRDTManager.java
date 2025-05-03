@@ -186,4 +186,25 @@ public class CRDTManager {
         CRDT crdt = crdtMap.get(documentKey);
         return crdt;
     }
+
+    public String getViewerCode(String documentcode) {
+        for (Map.Entry<Integer, List<String>> entry : generatedCodes.entrySet()) {
+            List<String> codes = entry.getValue();
+            if (codes.contains(documentcode)) {
+                return codes.get(0); // Return the viewer code
+            }
+        }
+        return null; // Document code not found
+    }
+
+    public int getUserId(String sessionCode) {
+        
+        for (Map.Entry<Integer, List<String>> entry : generatedCodes.entrySet()) {
+            List<String> codes = entry.getValue();
+            if (codes.contains(sessionCode)) {
+                return entry.getKey(); // Return the user ID
+            }
+        }
+        return -1; // Session code not found
+    }
 }

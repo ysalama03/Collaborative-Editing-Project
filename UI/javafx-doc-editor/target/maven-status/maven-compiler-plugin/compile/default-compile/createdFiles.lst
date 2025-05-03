@@ -2,6 +2,7 @@ app\Client\Client.class
 app\icons\DocumentIcon.class
 app\MainMenuUI.class
 app\icons\UndoIcon.class
+app\Client\ClientWebsocket$3.class
 app\Main.class
 app\Operation.class
 app\CRDTfiles\CRDT$CharacterId.class

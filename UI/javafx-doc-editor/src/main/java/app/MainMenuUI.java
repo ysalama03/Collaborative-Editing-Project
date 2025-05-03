@@ -87,6 +87,7 @@ public class MainMenuUI {
                     // Open the EditorUI and pass the file content
                     EditorUI editor = new EditorUI();
                     editor.setInitialContent(fileContent); // Pass the file content to EditorUI
+                    editor.setImported();
                     editor.start(primaryStage);
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -133,7 +134,7 @@ public class MainMenuUI {
                 // Send a POST request to the server and receive the response as a Map
                 HashMap<String, String> response = restTemplate.getForObject(serverUrl + "/" + sessionCode, HashMap.class);
 
-                if (response == null) {
+                if ("error".equals(response.keySet().iterator().next())) {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Error");
                     alert.setHeaderText("Failed to Join Session");

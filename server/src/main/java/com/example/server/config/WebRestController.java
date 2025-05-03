@@ -34,10 +34,6 @@ public class WebRestController {
     public HashMap<String, String> joinDocument(@PathVariable String documentCode) {
 
         HashMap<String, String> response = crdtManager.joinDocument(documentCode);
-        if (response == null) {
-            // Return an error response or throw an exception
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found");
-        }
         return response;
         
     }

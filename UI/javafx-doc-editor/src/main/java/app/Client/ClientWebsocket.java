@@ -27,6 +27,8 @@ import org.springframework.messaging.converter.MessageConverter;
 import app.Operation;
 import app.CRDTfiles.CRDTManager;
 import app.EditorUI;
+import javafx.application.Platform;
+import javafx.scene.control.ListView;
 
 public class ClientWebsocket {
     
@@ -109,6 +111,38 @@ public class ClientWebsocket {
         } catch (Exception e) {
             System.err.println("Error subscribing to poll: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    public void subscribeToActiveUsers(String sessionCode, ListView<String> activeUsersList) {
+        try {
+            String topic = "/topic/session/" + sessionCode + "/users";
+
+            stompSession.subscribe(topic, new StompFrameHandler() {
+                @Override
+                @NonNull
+                public Type getPayloadType(@NonNull StompHeaders headers) {
+                    return String.class; // Assume the server sends the user ID as a string
+                }
+
+                @Override
+                public void handleFrame(@NonNull StompHeaders headers, @NonNull Object payload) {
+                    String newUserId = (String) payload;
+
+                    // Update the active users list in the UI
+                    Platform.runLater(() -> {
+                        if (!activeUsersList.getItems().contains(newUserId)) {
+                            activeUsersList.getItems().add(newUserId);
+                            System.out.println("User joined: " + newUserId);
+                        }
+                    });
+                }
+            });
+
+            System.out.println("Subscribed to active users topic: " + topic);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Error subscribing to active users topic: " + e.getMessage());
         }
     }
 

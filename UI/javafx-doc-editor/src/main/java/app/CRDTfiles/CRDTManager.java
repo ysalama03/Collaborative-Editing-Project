@@ -16,11 +16,13 @@ public class CRDTManager {
         this.crdt = new CRDT();
     }
 
-    public CRDTManager(int localUserId, ClientWebsocket clientWebsocket, String text) {
+    public CRDTManager(int localUserId, ClientWebsocket clientWebsocket, String text, Boolean local, String documentCode) {
         this.clientWebsocket = clientWebsocket;
         this.localUserId = localUserId;
         this.crdt = new CRDT();
 
+        System.out.println("Text length: " + text.length());
+        System.out.println("Text: " + text);
         for (int i = 0; i < text.length(); i++) {
             char value = text.charAt(i);
             long timestamp = System.currentTimeMillis() + i; // Ensure unique timestamp for each character
@@ -43,8 +45,17 @@ public class CRDTManager {
                 op.setParentTimestamp(-1);
             }
 
-            insertRemote(op);
+            if (local) {
+                insertLocalAtPosition(value, i, documentCode);
+                System.out.println("Inserted locally: " + value + " at position " + i);
+            } else {
+                insertRemote(op);
+            }
         }
+
+        System.out.println("--------------------- CRDT Imported ---------------------");
+        printCRDT();
+        System.out.println("----------------------------------------------------------");
     }
 
     /**
@@ -155,7 +166,9 @@ public class CRDTManager {
      * Print the CRDT tree structure for debugging
      */
     public void printCRDT() {
-        crdt.printTree();
+        synchronized (crdt) {
+            crdt.printTree();
+        }
     }
 
     /**

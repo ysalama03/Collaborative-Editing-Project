@@ -35,7 +35,21 @@ public class WebSocketController {
             System.out.println("Delete operation: " + operation.getValue() + " ID = " + operation.getID());
         }
 
+        String viewerCode = crdtManager.getViewerCode(documentId);
+
         messagingTemplate.convertAndSend("/topic/document/" + documentId + "/operation", operation);
+        messagingTemplate.convertAndSend("/topic/document/" + viewerCode + "/operation", operation);
+
+    }
+
+    @MessageMapping("/session/{sessionCode}/users")
+    public void handleActiveUsers(@DestinationVariable String sessionCode, @Payload String userId) {
+        // Broadcast the active users to all subscribers of the session topic
+        String viewerCode = crdtManager.getViewerCode(sessionCode);
+        int crdtuserId = crdtManager.getUserId(sessionCode);
+
+        messagingTemplate.convertAndSend("/topic/session/" + viewerCode + "/users", crdtuserId);
+        messagingTemplate.convertAndSend("/topic/session/" + sessionCode + "/users", crdtuserId);
     }
 
 
