@@ -117,7 +117,7 @@ public class CRDT {
     /**
      * Get all visible nodes in document order
      */
-    private List<Node> getOrderedVisibleNodes() {
+    public List<Node> getOrderedVisibleNodes() {
         if (!flatOrderedNodes.isEmpty()) {
             return flatOrderedNodes;
         }
@@ -191,6 +191,16 @@ public class CRDT {
         List<Node> visibleNodes = getOrderedVisibleNodes();
         if (pos < 0 || pos >= visibleNodes.size()) return null;
         return visibleNodes.get(pos).id;
+    }
+
+    public int getPositionForCharacterId(CharacterId id) {
+        List<Node> visibleNodes = getOrderedVisibleNodes();
+        for (int i = 0; i < visibleNodes.size(); i++) {
+            if (visibleNodes.get(i).id.equals(id)) {
+                return i; // Return the position of the matching node
+            }
+        }
+        return -1; // Return -1 if the CharacterId is not found
     }
 
     public void printTree() {

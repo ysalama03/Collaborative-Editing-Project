@@ -3,10 +3,13 @@ import org.springframework.messaging.simp.stomp.StompSession;
 
 import app.Operation;
 import app.Client.ClientWebsocket;
+import java.util.Stack;
 
 public class CRDTManager {
     private final CRDT crdt;
     private final int localUserId;
+    private final Stack<Operation> undoStack = new Stack<>();
+    private final Stack<Operation> redoStack = new Stack<>();
     StompSession stompSession;
     ClientWebsocket clientWebsocket;
 
@@ -65,24 +68,18 @@ public class CRDTManager {
      * @param documentCode Document code for broadcasting
      */
     public void insertLocalAtPosition(char value, int position, String documentCode) {
-        // Generate a unique timestamp (newer than any previous operation)
         long timestamp = System.currentTimeMillis();
         CRDT.CharacterId id = new CRDT.CharacterId(timestamp, localUserId);
-        
-        // Insert into the local CRDT
+
         crdt.insert(id, value, position);
-        
-        // Get the parent ID that was determined during insertion
         CRDT.CharacterId parentId = crdt.nodeMap.get(id).parentId;
-        
-        // Create operation to broadcast
+
         Operation op = new Operation();
         op.setOp("insert");
         op.setID(id.userId);
-        op.setTimestamp(id.timestamp); 
+        op.setTimestamp(id.timestamp);
         op.setValue(String.valueOf(value));
-        
-        // Set parent information
+
         if (parentId != null) {
             op.setParentID(parentId.userId);
             op.setParentTimestamp(parentId.timestamp);
@@ -90,8 +87,10 @@ public class CRDTManager {
             op.setParentID(-1);
             op.setParentTimestamp(-1);
         }
-        
-        // Broadcast the operation
+
+        undoStack.push(op); // Push the operation onto the undo stack
+        redoStack.clear(); // Clear the redo stack when a new operation is performed
+
         clientWebsocket.sendOperation(op, documentCode);
     }
 
@@ -107,13 +106,20 @@ public class CRDTManager {
             System.out.println("Delete failed: No character at position " + position);
             return false;
         }
-        
+
+        char value = crdt.getVisibleString().charAt(position);
         boolean success = crdt.delete(id);
         if (success) {
             Operation op = new Operation();
             op.setOp("delete");
             op.setID(id.userId);
             op.setTimestamp(id.timestamp);
+            op.setValue(String.valueOf(value));
+            op.setOriginalPosition(position); // Store the original position
+
+            undoStack.push(op); // Push the operation onto the undo stack
+            redoStack.clear(); // Clear the redo stack when a new operation is performed
+
             clientWebsocket.sendOperation(op, documentCode);
             return true;
         } else {
@@ -209,5 +215,66 @@ public class CRDTManager {
 
     public int getLocalUserId() {
         return localUserId;
+    }
+
+    public void undo(String documentCode) {
+        if (!undoStack.isEmpty()) {
+            Operation op = undoStack.pop();
+            Operation reverseOp = null;
+
+            if (op.getOp().equals("insert")) {
+                // Reverse insert -> delete
+                CRDT.CharacterId id = new CRDT.CharacterId(op.getTimestamp(), op.getID());
+                crdt.delete(id);
+                reverseOp = new Operation("delete", op.getID(), op.getTimestamp(), op.getValue(), -1, -1);
+            } else if (op.getOp().equals("delete")) {
+                // Reverse delete -> insert
+                CRDT.CharacterId id = new CRDT.CharacterId(op.getTimestamp(), op.getID());
+                int originalPosition = op.getOriginalPosition(); // Retrieve the original position
+                crdt.insert(id, op.getValue().charAt(0), originalPosition);
+                reverseOp = new Operation("insert", op.getID(), op.getTimestamp(), op.getValue(), -1, -1);
+                reverseOp.setOriginalPosition(originalPosition); // Include the original position
+            }
+
+            if (reverseOp != null) {
+                redoStack.push(op); // Push the original operation onto the redo stack
+                clientWebsocket.sendOperation(reverseOp, documentCode); // Broadcast the reverse operation
+            }
+        } else {
+            System.out.println("Undo stack is empty.");
+        }
+    }
+
+    public void redo(String documentCode) {
+        if (!redoStack.isEmpty()) {
+            Operation op = redoStack.pop();
+            Operation reverseOp = null;
+
+            if (op.getOp().equals("insert")) {
+                // Redo insert
+                CRDT.CharacterId id = new CRDT.CharacterId(op.getTimestamp(), op.getID());
+                int position = crdt.getPositionForCharacterId(id);
+
+                // If the position is invalid, calculate the correct position
+                if (position == -1) {
+                    position = crdt.getOrderedVisibleNodes().size(); // Insert at the end if position is not found
+                }
+
+                crdt.insert(id, op.getValue().charAt(0), position);
+                reverseOp = new Operation("delete", op.getID(), op.getTimestamp(), op.getValue(), -1, -1);
+            } else if (op.getOp().equals("delete")) {
+                // Redo delete
+                CRDT.CharacterId id = new CRDT.CharacterId(op.getTimestamp(), op.getID());
+                crdt.delete(id);
+                reverseOp = new Operation("insert", op.getID(), op.getTimestamp(), op.getValue(), -1, -1);
+            }
+
+            if (reverseOp != null) {
+                undoStack.push(op); // Push the original operation back onto the undo stack
+                clientWebsocket.sendOperation(op, documentCode); // Broadcast the operation
+            }
+        } else {
+            System.out.println("Redo stack is empty.");
+        }
     }
 }

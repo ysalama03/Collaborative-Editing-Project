@@ -32,6 +32,7 @@ import app.Operation;
 import app.CRDTfiles.CRDTManager;
 import app.EditorUI;
 import javafx.application.Platform;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 
 public class ClientWebsocket {
@@ -145,6 +146,29 @@ public class ClientWebsocket {
                             }
                         }
                     });
+                }
+            });
+
+            // Customize the ListView to display each user with a different color
+            activeUsersList.setCellFactory(listView -> new ListCell<String>() {
+                private final Map<String, String> userColors = new HashMap<>();
+                private final List<String> colors = List.of(
+                    "#FF5733", "#33FF57", "#3357FF", "#F333FF", "#FFC300", "#33FFF5", "#FF33A8"
+                );
+
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(item);
+
+                        // Assign a unique color to each user
+                        userColors.putIfAbsent(item, colors.get(userColors.size() % colors.size()));
+                        setStyle("-fx-text-fill: " + userColors.get(item) + ";");
+                    }
                 }
             });
 

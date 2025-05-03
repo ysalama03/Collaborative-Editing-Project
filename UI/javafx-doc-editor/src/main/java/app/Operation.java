@@ -8,6 +8,7 @@ public class Operation{
     private String value;
     private int parentID;
     private long parentTimestamp;
+    private int originalPosition; // Add this field
 
     public Operation()
     {
@@ -61,6 +62,14 @@ public class Operation{
     }
     public void setParentTimestamp(long parentTimestamp) {
         this.parentTimestamp = parentTimestamp;
+    }
+
+    public int getOriginalPosition() {
+        return originalPosition;
+    }
+
+    public void setOriginalPosition(int originalPosition) {
+        this.originalPosition = originalPosition;
     }
 
 }

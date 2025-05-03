@@ -1,6 +1,7 @@
 app\Client\Client.class
 app\icons\DocumentIcon.class
 app\MainMenuUI.class
+app\Client\ClientWebsocket$5.class
 app\icons\UndoIcon.class
 app\Client\ClientWebsocket$3.class
 app\Main.class

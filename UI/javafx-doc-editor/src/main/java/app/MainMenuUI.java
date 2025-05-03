@@ -18,11 +18,37 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.HashMap;
 
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import app.CRDTfiles.CRDT;
 
 public class MainMenuUI {
+
+    // Method to check server availability
+    private boolean isServerAvailable() {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            // Use a simple health check endpoint or any existing endpoint
+            restTemplate.getForObject("http://localhost:8080/test", String.class);
+            return true;
+        } catch (ResourceAccessException e) {
+            // Server is not available
+            return false;
+        } catch (Exception e) {
+            // Other exceptions might indicate different issues, but we'll treat them as server unavailable
+            return false;
+        }
+    }
+
+    // Method to show server unavailable alert
+    private void showServerUnavailableAlert() {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Server Error");
+        alert.setHeaderText("Server Unavailable");
+        alert.setContentText("The server is currently unavailable. Please ensure the server is running and try again.");
+        alert.showAndWait();
+    }
 
     public Parent createMainMenu(Stage primaryStage) {
         // Section 1: New Doc
@@ -46,13 +72,25 @@ public class MainMenuUI {
         newDocButton.setMaxWidth(Double.MAX_VALUE);
         newDocButton.getStyleClass().add("main-menu-btn");
 
-        // Open EditorUI when clicked
+        // Open EditorUI when clicked, but first check if server is available
         newDocButton.setOnAction(e -> {
-            EditorUI editor = new EditorUI();
+            // Check server availability before proceeding
+            if (!isServerAvailable()) {
+                showServerUnavailableAlert();
+                return;
+            }
+
+            // Server is available, proceed to open EditorUI
             try {
+                EditorUI editor = new EditorUI();
                 editor.start(primaryStage);
             } catch (Exception ex) {
                 ex.printStackTrace();
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Error");
+                errorAlert.setHeaderText("Failed to Open Editor");
+                errorAlert.setContentText("An error occurred while opening the editor. Please try again.");
+                errorAlert.showAndWait();
             }
         });
 
@@ -73,6 +111,12 @@ public class MainMenuUI {
         browseButton.getStyleClass().add("main-menu-btn");
 
         browseButton.setOnAction(e -> {
+            // First check if the server is available
+            if (!isServerAvailable()) {
+                showServerUnavailableAlert();
+                return;
+            }
+            
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Open Text File");
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
@@ -116,6 +160,12 @@ public class MainMenuUI {
         joinButton.getStyleClass().add("main-menu-btn");
 
         joinButton.setOnAction(e -> {
+            // First check if the server is available
+            if (!isServerAvailable()) {
+                showServerUnavailableAlert();
+                return;
+            }
+
             String sessionCode = sessionField.getText();
             if (sessionCode.isEmpty()) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -124,40 +174,58 @@ public class MainMenuUI {
                 alert.setContentText("Please enter a session code to join.");
                 alert.showAndWait();
             } else {
+                try {
+                    // Create a RestTemplate instance
+                    RestTemplate restTemplate = new RestTemplate();
 
-                // Create a RestTemplate instance
-                RestTemplate restTemplate = new RestTemplate();
-                
-                // Define the server endpoint for creating a new document
-                String serverUrl = "http://localhost:8080/JoinDocument";
+                    // Define the server endpoint for creating a new document
+                    String serverUrl = "http://localhost:8080/JoinDocument";
 
-                // Send a POST request to the server and receive the response as a Map
-                HashMap<String, String> response = restTemplate.getForObject(serverUrl + "/" + sessionCode, HashMap.class);
+                    // Send a GET request to the server and receive the response as a Map
+                    HashMap<String, String> response = restTemplate.getForObject(serverUrl + "/" + sessionCode, HashMap.class);
 
-                if ("error".equals(response.keySet().iterator().next())) {
+                    if ("error".equals(response.keySet().iterator().next())) {
+                        Alert alert = new Alert(Alert.AlertType.ERROR);
+                        alert.setTitle("Error");
+                        alert.setHeaderText("Failed to Join Session");
+                        alert.setContentText("An error occurred while joining the session. Please check the code and try again.");
+                        alert.showAndWait();
+                        return;
+                    }
+
+                    // Extract userId and role from the response
+                    String key = response.keySet().iterator().next();
+                    char role = key.charAt(0); // First character indicates role (V for viewer, E for editor)
+                    int userId = Integer.parseInt(key.substring(1)); // Remaining part is the userId
+
+                    String text = response.values().iterator().next();
+
+                    System.out.println("User ID: " + userId);
+                    System.out.println("CRDT: " + text);
+
+                    EditorUI editor = new EditorUI();
+                    editor.setExistingCRDT(role, userId, text, sessionCode); // Replace null with actual CRDT conversion if needed
+                    try {
+                        editor.start(primaryStage);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        Alert alert = new Alert(Alert.AlertType.ERROR);
+                        alert.setTitle("Error");
+                        alert.setHeaderText("Failed to Open Editor");
+                        alert.setContentText("An error occurred while opening the editor. Please try again.");
+                        alert.showAndWait();
+                    }
+                } catch (ResourceAccessException ex) {
+                    // Handle server down or connection issues
+                    showServerUnavailableAlert();
+                    ex.printStackTrace();
+                } catch (Exception ex) {
+                    // Handle other exceptions
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Error");
-                    alert.setHeaderText("Failed to Join Session");
-                    alert.setContentText("An error occurred while joining the session. Please check the code and try again.");
+                    alert.setHeaderText("An Unexpected Error Occurred");
+                    alert.setContentText("An error occurred while processing your request. Please try again later.");
                     alert.showAndWait();
-                    return;
-                }
-
-                // Extract userId and role from the response
-                String key = response.keySet().iterator().next();
-                char role = key.charAt(0); // First character indicates role (V for viewer, E for editor)
-                int userId = Integer.parseInt(key.substring(1)); // Remaining part is the userId
-
-                String text = response.values().iterator().next(); 
-
-                System.out.println("User ID: " + userId);
-                System.out.println("CRDT: " + text);
-
-                EditorUI editor = new EditorUI();
-                editor.setExistingCRDT(role, userId, text, sessionCode); // Replace null with actual CRDT conversion if needed
-                try {
-                    editor.start(primaryStage);
-                } catch (Exception ex) {
                     ex.printStackTrace();
                 }
             }

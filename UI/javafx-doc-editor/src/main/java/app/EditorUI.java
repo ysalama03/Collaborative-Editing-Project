@@ -133,6 +133,20 @@ public class EditorUI extends Application {
             }
         });
 
+        // Add functionality to the Undo button
+        undoButton.setOnAction(event -> {
+            crdtManager.undo(sessionCode);
+            String currentText = crdtManager.getDocumentText();
+            updateDocumentWithString(currentText); // Update the UI
+        });
+
+        // Add functionality to the Redo button
+        redoButton.setOnAction(event -> {
+            crdtManager.redo(sessionCode);
+            String currentText = crdtManager.getDocumentText();
+            updateDocumentWithString(currentText); // Update the UI
+        });
+
         // Main Layout
         BorderPane mainLayout = new BorderPane();
         mainLayout.setLeft(leftPanel);
@@ -153,6 +167,7 @@ public class EditorUI extends Application {
             websocket.subscribeToActiveUsers(userID, viewerCode, activeUsersList); // Subscribe to active users
             websocket.sendUserId(userID, editorCode);
             websocket.subscribeToCursor(editorCode, activeUsersList);
+            websocket.subscribeToCursor(viewerCode, activeUsersList);
             sessionCode = editorCode;
         } else {
             crdtManager = new CRDTManager(userID, websocket, initialContent, false, sessionCode);
@@ -182,62 +197,45 @@ public class EditorUI extends Application {
         while (diffIndex < minLen && oldText.charAt(diffIndex) == newText.charAt(diffIndex)) {
             diffIndex++;
         }
-        
+
         if (newText.length() > oldText.length()) {
-            // Insert operation - process each character individually
+            // Insert operation - process the entire inserted string
             String inserted = newText.substring(diffIndex, diffIndex + (newText.length() - oldText.length()));
-            
-            // Process each character in the inserted string
+
+            // Insert the entire string at the correct position
             for (int i = 0; i < inserted.length(); i++) {
                 char c = inserted.charAt(i);
-                LocalTime now = LocalTime.now();
-                // Add a small increment to ensure unique timestamps for each character
-                long timeAsLong = now.getHour() * 10000000L + now.getMinute() * 100000 + 
-                                 now.getSecond() * 1000 + now.getNano() / 1_000_000 + i;
-                
-                Operation op = new Operation("insert", userID, timeAsLong, String.valueOf(c), -1, -1);
-                
-                // Insert at the correct position (diffIndex + i accounts for previously inserted chars)
-                crdtManager.insertLocalAtPosition(c, diffIndex + i, sessionCode);
-                
-                System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + 
-                                  " " + op.getTimestamp() + " " + op.getParentID() + 
-                                  " " + op.getParentTimestamp());
-            }
-            
-            Platform.runLater(() -> crdtManager.printCRDT());
-            
-        } else if (newText.length() < oldText.length()) {
-            // Delete operation - may need to delete multiple characters
-            int charsToDelete = oldText.length() - newText.length();
-            
-            for (int i = 0; i < charsToDelete; i++) {
-                // For each character to delete, we need to find the position
-                // Note: Always delete at diffIndex since the positions shift after each deletion
-                CRDT.CharacterId idToDelete = crdtManager.getCRDT().getCharacterIdAtPosition(diffIndex);
-                
-                if (idToDelete != null) {
-                    LocalTime now = LocalTime.now();
-                    long timeAsLong = now.getHour() * 10000000L + now.getMinute() * 100000 + 
-                                     now.getSecond() * 1000 + now.getNano() / 1_000_000 + i;
-                    
-                    Operation op = new Operation("delete", userID, timeAsLong, 
-                    String.valueOf(oldText.charAt(diffIndex + i)), -1, -1);
-                    
-                    crdtManager.deleteLocalAtPosition(diffIndex, sessionCode);
-                    
-                    System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + 
-                    " " + op.getTimestamp() + " " + op.getParentID() + 
-                    " " + op.getParentTimestamp());
-                } else {
-                    System.out.println("No character found at position " + diffIndex);
-                    break;
+                int position = diffIndex + i; // Calculate the correct position for each character
+                crdtManager.insertLocalAtPosition(c, position, sessionCode);
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.println("Thread was interrupted: " + e.getMessage());
                 }
             }
-            
+
+            Platform.runLater(() -> crdtManager.printCRDT());
+
+        } else if (newText.length() < oldText.length()) {
+            // Delete operation - process the entire deleted string
+            int charsToDelete = oldText.length() - newText.length();
+
+            for (int i = 0; i < charsToDelete; i++) {
+                // Always delete at diffIndex since positions shift after each deletion
+                crdtManager.deleteLocalAtPosition(diffIndex, sessionCode);
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.println("Thread was interrupted: " + e.getMessage());
+                }
+            }
+
             Platform.runLater(() -> crdtManager.printCRDT());
         }
     }
+
     /**
  * Updates the document UI and CRDT with the given string.
  * @param content The new document content to display.
