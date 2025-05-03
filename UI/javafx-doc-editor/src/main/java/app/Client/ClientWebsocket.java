@@ -19,6 +19,7 @@ import io.micrometer.common.lang.NonNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.converter.MessageConverter;
@@ -33,43 +34,42 @@ public class ClientWebsocket {
     WebSocketStompClient stompClient;
     CRDTManager crdtManager;
     EditorUI editorUI;
+    // Use a counter to batch operations for UI updates
+    private AtomicInteger operationsReceived = new AtomicInteger(0);
+    private static final int BATCH_SIZE = 5; // Update UI after every 5 operations or when idle
 
     public void connectToWebSocket(EditorUI editorUI) {
         this.editorUI = editorUI;
         try {
-        
-        
-        List<Transport> transports = Collections.singletonList(new WebSocketTransport(new StandardWebSocketClient()));
-        SockJsClient sockJsClient = null;
-        List<MessageConverter> converters = new ArrayList<>();   
+            List<Transport> transports = Collections.singletonList(new WebSocketTransport(new StandardWebSocketClient()));
+            SockJsClient sockJsClient = null;
+            List<MessageConverter> converters = new ArrayList<>();   
 
-        ///////////////
-        sockJsClient = new SockJsClient(transports);
-        stompClient = new WebSocketStompClient(sockJsClient);
-        
-        converters.add(new MappingJackson2MessageConverter());
-        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
+            ///////////////
+            sockJsClient = new SockJsClient(transports);
+            stompClient = new WebSocketStompClient(sockJsClient);
+            
+            converters.add(new MappingJackson2MessageConverter());
+            stompClient.setMessageConverter(new MappingJackson2MessageConverter());
 
-        // Connect to the server
-        String url = "ws://localhost:8080/ws";
-        stompSession = stompClient.connectAsync(url, new StompSessionHandlerAdapter() {
-            @Override
-            public void handleException(@NonNull StompSession session,@NonNull StompCommand command, @NonNull StompHeaders headers,@NonNull byte[] payload, @NonNull Throwable exception) {
-                    System.err.println("Error in STOMP session: " + exception.getMessage());
-                exception.printStackTrace();
-            }
-        }).get();
+            // Connect to the server
+            String url = "ws://localhost:8080/ws";
+            stompSession = stompClient.connectAsync(url, new StompSessionHandlerAdapter() {
+                @Override
+                public void handleException(@NonNull StompSession session,@NonNull StompCommand command, @NonNull StompHeaders headers,@NonNull byte[] payload, @NonNull Throwable exception) {
+                        System.err.println("Error in STOMP session: " + exception.getMessage());
+                    exception.printStackTrace();
+                }
+            }).get();
 
-        System.out.println("Connected to WebSocket server at " + url);
-        //////////////// 
-		
+            System.out.println("Connected to WebSocket server at " + url);
+            //////////////// 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public void subscribeToDocument(String DocumentCode, CRDTManager crdtManager)
-    {
+    public void subscribeToDocument(String DocumentCode, CRDTManager crdtManager) {
         this.crdtManager = crdtManager;
         try {
             // Subscribe to the poll topic
@@ -83,20 +83,26 @@ public class ClientWebsocket {
                 }
 
                 @Override
-                public void handleFrame(@NonNull StompHeaders headers,@NonNull Object payload) {
+                public void handleFrame(@NonNull StompHeaders headers, @NonNull Object payload) {
                     Operation result = (Operation) payload;
 
                     System.out.println("Received operation: " + result.getOp() + " from user: " + result.getID() + " with value: " + result.getValue());
                     if (result.getID() != crdtManager.getLocalUserId()) {
                         if (result.getOp().equals("insert")) {
                             crdtManager.insertRemote(result);
-                            editorUI.updateDocumentWithString(crdtManager.getDocumentText());
+                            crdtManager.printCRDT();
+                            // Get the latest document text after each insert
+                            String currentText = crdtManager.getDocumentText();
+                            // Update the UI with the current text
+                            editorUI.updateDocumentWithString(currentText);
                         } else if (result.getOp().equals("delete")) {
                             crdtManager.deleteRemote(result);
-                            editorUI.updateDocumentWithString(crdtManager.getDocumentText());
+                            // Get the latest document text after each delete
+                            String currentText = crdtManager.getDocumentText();
+                            // Update the UI with the current text
+                            editorUI.updateDocumentWithString(currentText);
                         }
                     }
-                   
                 }
             });
             System.out.println("Subscribed to Document: " + DocumentCode);
@@ -117,9 +123,7 @@ public class ClientWebsocket {
         }
     }
 
-    public void close(){
+    public void close() {
         this.stompSession.disconnect();
     }
 }
-
-

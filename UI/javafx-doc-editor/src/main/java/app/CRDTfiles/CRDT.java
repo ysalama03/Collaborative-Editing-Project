@@ -154,12 +154,37 @@ public class CRDT {
         return true;
     }
 
+    /* 
     public String getVisibleString() {
         StringBuilder sb = new StringBuilder();
         for (Node node : getOrderedVisibleNodes()) {
             sb.append(node.value);
         }
         return sb.toString();
+    }
+    */
+
+    public String getVisibleString() {
+        StringBuilder sb = new StringBuilder();
+        
+        // Start from the root node and traverse the tree
+        traverseVisibleString(nodeMap.get(null), sb);
+        
+        return sb.toString();
+    }
+
+    private void traverseVisibleString(Node node, StringBuilder sb) {
+        if (node == null) return;
+        
+        // If not root and not deleted, add to string
+        if (node.id != null && !node.isDeleted) {
+            sb.append(node.value);
+        }
+        
+        // For each child, traverse recursively
+        for (Node child : node.children) {
+            traverseVisibleString(child, sb);
+        }
     }
 
     public CharacterId getCharacterIdAtPosition(int pos) {

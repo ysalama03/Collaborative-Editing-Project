@@ -2,6 +2,7 @@ package app;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -32,6 +33,9 @@ public class EditorUI extends Application {
     CRDTManager crdtManager;
     Boolean isNewSession = true; // Flag to check if it's a new session
     Boolean isEditor = true; // Flag to check if it's an editor
+
+    // Define the listener as a field
+    private ChangeListener<String> textChangeListener;
 
     /**
      * Sets the initial content of the editor.
@@ -83,20 +87,18 @@ public class EditorUI extends Application {
         // Set the initial content in the TextArea
         textArea.setText(initialContent);
 
-        // Track previous text for diffing
-        final String[] previousText = {initialContent};
-
-        // Add listener for text changes
-        textArea.textProperty().addListener((observable, oldValue, newValue) -> {
+        // Define the listener
+        textChangeListener = (observable, oldValue, newValue) -> {
             if (isEditor) {
                 handleTextChange(oldValue, newValue);
-                previousText[0] = newValue;
             } else {
                 // Revert text if a viewer tries to change it
-                Platform.runLater(() -> textArea.setText(previousText[0]));
+                Platform.runLater(() -> textArea.setText(initialContent));
             }
-        });
-        
+        };
+
+        // Add the listener to the TextArea
+        textArea.textProperty().addListener(textChangeListener);
 
         // Main Layout
         BorderPane mainLayout = new BorderPane();
@@ -118,6 +120,7 @@ public class EditorUI extends Application {
             fetchDocumentCodes(viewerCodeLabel, editorCodeLabel);
             //websocket.subscribeToDocument(viewerCode, crdtManager);
             websocket.subscribeToDocument(editorCode, crdtManager);
+            sessionCode = editorCode; // Set the session code to the editor code
         } else {
             crdtManager = new CRDTManager(userID, websocket, initialContent);
             setInitialContent(crdtManager.getDocumentText());
@@ -138,64 +141,100 @@ public class EditorUI extends Application {
         while (diffIndex < minLen && oldText.charAt(diffIndex) == newText.charAt(diffIndex)) {
             diffIndex++;
         }
-
-        Operation op = null;
-        String documentCode = viewerCode;
-
-        LocalTime now = LocalTime.now();
-        long timeAsLong = now.getHour() * 10000000L + now.getMinute() * 100000 + now.getSecond() * 1000 + now.getNano() / 1_000_000;
+        
         if (newText.length() > oldText.length()) {
-            // Insert operation
+            // Insert operation - process each character individually
             String inserted = newText.substring(diffIndex, diffIndex + (newText.length() - oldText.length()));
-            op = new Operation("insert", userID, timeAsLong, inserted, -1, -1);
-            crdtManager.insertLocalAtPosition(inserted.charAt(0), diffIndex, editorCode);
-            Platform.runLater(() -> crdtManager.printCRDT());
-            System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + " " + op.getTimestamp() + " " + op.getParentID() + " " + op.getParentTimestamp());
-        } else if (newText.length() < oldText.length()) {
-            // Delete operation
-            int caretPos = diffIndex; // this is where the deletion occurred
-            CRDT.CharacterId idToDelete = crdtManager.getCRDT().getCharacterIdAtPosition(caretPos);
             
-            if (idToDelete != null) {
-                op = new Operation("delete", userID, timeAsLong, oldText.substring(caretPos, caretPos + 1), -1, -1);
-                crdtManager.deleteLocalAtPosition(diffIndex, documentCode);
-                Platform.runLater(() -> crdtManager.printCRDT());
-            } else {
-                System.out.println("No character found at position " + caretPos);
-                return;
+            // Process each character in the inserted string
+            for (int i = 0; i < inserted.length(); i++) {
+                char c = inserted.charAt(i);
+                LocalTime now = LocalTime.now();
+                // Add a small increment to ensure unique timestamps for each character
+                long timeAsLong = now.getHour() * 10000000L + now.getMinute() * 100000 + 
+                                 now.getSecond() * 1000 + now.getNano() / 1_000_000 + i;
+                
+                Operation op = new Operation("insert", userID, timeAsLong, String.valueOf(c), -1, -1);
+                
+                // Insert at the correct position (diffIndex + i accounts for previously inserted chars)
+                crdtManager.insertLocalAtPosition(c, diffIndex + i, sessionCode);
+                
+                System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + 
+                                  " " + op.getTimestamp() + " " + op.getParentID() + 
+                                  " " + op.getParentTimestamp());
             }
-
+            
             Platform.runLater(() -> crdtManager.printCRDT());
-            System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + " " + op.getTimestamp() + " " + op.getParentID() + " " + op.getParentTimestamp());
-        } else {
-            // No change or replacement (not handled here)
-            return;
-        }
-
-    }
-
-    /**
-     * Updates the document UI and CRDT with the given string.
-     * @param content The new document content to display.
-     */
-    public void updateDocumentWithString(String content) {
-        this.initialContent = content;
-        // Update the TextArea if it exists
-        Platform.runLater(() -> {
-            // Find the TextArea in the scene and update it
-            Scene scene = Stage.getWindows().stream()
-                .filter(Window::isShowing)
-                .findFirst()
-                .map(Window::getScene)
-                .orElse(null);
-            if (scene != null) {
-                TextArea textArea = (TextArea) scene.lookup(".text-area");
-                if (textArea != null) {
-                    textArea.setText(content);
+            
+        } else if (newText.length() < oldText.length()) {
+            // Delete operation - may need to delete multiple characters
+            int charsToDelete = oldText.length() - newText.length();
+            
+            for (int i = 0; i < charsToDelete; i++) {
+                // For each character to delete, we need to find the position
+                // Note: Always delete at diffIndex since the positions shift after each deletion
+                CRDT.CharacterId idToDelete = crdtManager.getCRDT().getCharacterIdAtPosition(diffIndex);
+                
+                if (idToDelete != null) {
+                    LocalTime now = LocalTime.now();
+                    long timeAsLong = now.getHour() * 10000000L + now.getMinute() * 100000 + 
+                                     now.getSecond() * 1000 + now.getNano() / 1_000_000 + i;
+                    
+                    Operation op = new Operation("delete", userID, timeAsLong, 
+                                              String.valueOf(oldText.charAt(diffIndex + i)), -1, -1);
+                    
+                    crdtManager.deleteLocalAtPosition(diffIndex, sessionCode);
+                    
+                    System.out.println(op.getID() + " " + op.getOp() + " " + op.getValue() + 
+                                      " " + op.getTimestamp() + " " + op.getParentID() + 
+                                      " " + op.getParentTimestamp());
+                } else {
+                    System.out.println("No character found at position " + diffIndex);
+                    break;
                 }
             }
-        });
+            
+            Platform.runLater(() -> crdtManager.printCRDT());
+        }
     }
+    /**
+ * Updates the document UI and CRDT with the given string.
+ * @param content The new document content to display.
+ */
+public void updateDocumentWithString(String content) {
+    // Store the new content
+    this.initialContent = content;
+
+    Platform.runLater(() -> {
+        // Find the TextArea in the scene and update it
+        Scene scene = Stage.getWindows().stream()
+            .filter(Window::isShowing)
+            .findFirst()
+            .map(Window::getScene)
+            .orElse(null);
+
+        if (scene != null) {
+            TextArea textArea = (TextArea) scene.lookup(".text-area");
+            if (textArea != null) {
+                // Temporarily remove the listener to prevent change events
+                textArea.textProperty().removeListener(textChangeListener);
+                
+                // Update the TextArea content with the full document text
+                textArea.setText(content);
+                
+                // Debug log
+                System.out.println("UI updated with text: " + content);
+                
+                // Re-add the listener
+                textArea.textProperty().addListener(textChangeListener);
+            } else {
+                System.err.println("TextArea not found in scene!");
+            }
+        } else {
+            System.err.println("No active window scene found!");
+        }
+    });
+}
 
     /**
      * Fetches the viewer and editor codes from the server and updates the labels.

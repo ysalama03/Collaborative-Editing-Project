@@ -146,7 +146,9 @@ public class CRDTManager {
      * Get the current document text
      */
     public String getDocumentText() {
-        return crdt.getVisibleString();
+        String text = crdt.getVisibleString();
+        System.out.println("CRDT document text: \"" + text + "\"");
+        return text;
     }
 
     /**
