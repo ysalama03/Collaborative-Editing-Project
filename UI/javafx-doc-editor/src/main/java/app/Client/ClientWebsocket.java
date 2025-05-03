@@ -18,7 +18,9 @@ import io.micrometer.common.lang.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.messaging.converter.CompositeMessageConverter;
@@ -153,6 +155,64 @@ public class ClientWebsocket {
         }
     }
 
+    public void subscribeToCursor(String sessionCode, ListView<String> activeUsersList) {
+        try {
+            String topic = "/topic/session/" + sessionCode + "/cursor";
+
+            stompSession.subscribe(topic, new StompFrameHandler() {
+                @Override
+                @NonNull
+                public Type getPayloadType(@NonNull StompHeaders headers) {
+                    return Map.class; // Expecting a Map<String, Integer> payload
+                }
+
+                @Override
+                @SuppressWarnings("unchecked")
+                public void handleFrame(@NonNull StompHeaders headers, @NonNull Object payload) {
+                    Map<String, Integer> cursorPositionsString = (Map<String, Integer>) payload;
+
+                    // Convert Map<String, Integer> to Map<Integer, Integer>
+                    Map<Integer, Integer> cursorPositions = new HashMap<>();
+                    for (Map.Entry<String, Integer> entry : cursorPositionsString.entrySet()) {
+                        cursorPositions.put(Integer.parseInt(entry.getKey()), entry.getValue());
+                    }
+
+                    System.out.println("Received cursor positions: " + cursorPositions);
+
+                    // Update the active users list in the UI
+                    Platform.runLater(() -> {
+                        for (Map.Entry<Integer, Integer> entry : cursorPositions.entrySet()) {
+                            int userId = entry.getKey();
+                            int lineNumber = entry.getValue();
+                            String userIdString = "User" + userId;
+                            String displayText = userIdString + " (Line: " + lineNumber + ")";
+                            
+                            // Update the activeUsersList with the cursor position
+                            int index = -1;
+                            for (int i = 0; i < activeUsersList.getItems().size(); i++) {
+                                if (activeUsersList.getItems().get(i).startsWith(userIdString)) {
+                                    index = i;
+                                    break;
+                                }
+                            }
+
+                            if (index != -1) {
+                                activeUsersList.getItems().set(index, displayText);
+                            } else {
+                                activeUsersList.getItems().add(displayText);
+                            }
+                        }
+                    });
+                }
+            });
+
+            System.out.println("Subscribed to cursor positions topic: " + topic);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Error subscribing to cursor positions topic: " + e.getMessage());
+        }
+    }
+
     public void sendOperation(Operation operation, String DocumentCode) {
         try {
             // Send the operation to the server
@@ -171,6 +231,18 @@ public class ClientWebsocket {
             stompSession.send(destination, String.valueOf(userId));
         } catch (Exception e) {
             System.err.println("Error sending user ID: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public void sendCursorPosition(int userId, String sessionCode, int lineNumber) {
+        try {
+            String destination = "/app/session/" + sessionCode + "/cursor";
+            Map<Integer, Integer> cursorPositionMap = Collections.singletonMap(userId, lineNumber);
+            stompSession.send(destination, cursorPositionMap);
+            System.out.println("Sent cursor position (line): " + lineNumber + " for user: " + userId);
+        } catch (Exception e) {
+            System.err.println("Error sending cursor position: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -15,4 +15,5 @@ app\Client\ClientWebsocket$1.class
 app\icons\DocumentPlusIcon.class
 app\CRDTfiles\CRDT.class
 app\icons\UserIcon.class
+app\Client\ClientWebsocket$4.class
 app\CRDTfiles\CRDT$Node.class

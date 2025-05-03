@@ -1,6 +1,7 @@
 package com.example.server.config;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -57,7 +58,17 @@ public class WebSocketController {
         messagingTemplate.convertAndSend("/topic/session/" + sessionCode + "/users", userIds);
     }
 
+    @MessageMapping("/session/{sessionCode}/cursor")
+    public void handleCursorPosition(@DestinationVariable String sessionCode, @Payload Map<Integer, Integer> cursorPositions) {
+        System.out.println("Received cursor positions for session " + sessionCode + ": " + cursorPositions);
 
+        // Broadcast the cursor positions to all users in the session
+        messagingTemplate.convertAndSend("/topic/session/" + sessionCode + "/cursor", cursorPositions);
+
+        System.out.println("Broadcasted cursor positions to session " + sessionCode);
+    }
+
+    
 }
 
 

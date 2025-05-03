@@ -108,6 +108,14 @@ public class EditorUI extends Application {
         // Add the listener to the TextArea
         textArea.textProperty().addListener(textChangeListener);
 
+        // Add a listener for caret position changes
+        textArea.caretPositionProperty().addListener((observable, oldValue, newValue) -> {
+            int caretPosition = newValue.intValue();
+            String textBeforeCaret = textArea.getText(0, caretPosition); // Get text before the caret
+            int lineNumber = textBeforeCaret.split("\n", -1).length; // Count the number of lines
+            websocket.sendCursorPosition(userID, sessionCode, lineNumber);
+        });
+
         // Add functionality to the Export button
         exportButton.setOnAction(event -> {
             FileChooser fileChooser = new FileChooser();
@@ -144,6 +152,7 @@ public class EditorUI extends Application {
             websocket.subscribeToActiveUsers(userID, editorCode, activeUsersList); // Subscribe to active users
             websocket.subscribeToActiveUsers(userID, viewerCode, activeUsersList); // Subscribe to active users
             websocket.sendUserId(userID, editorCode);
+            websocket.subscribeToCursor(editorCode, activeUsersList);
             sessionCode = editorCode;
         } else {
             crdtManager = new CRDTManager(userID, websocket, initialContent, false, sessionCode);
@@ -156,6 +165,7 @@ public class EditorUI extends Application {
             websocket.subscribeToDocument(sessionCode, crdtManager);
             websocket.subscribeToActiveUsers(userID, sessionCode, activeUsersList); // Subscribe to active users
             websocket.sendUserId(userID, sessionCode);
+            websocket.subscribeToCursor(sessionCode, activeUsersList);
         }
 
     }
