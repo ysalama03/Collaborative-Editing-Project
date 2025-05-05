@@ -9,6 +9,7 @@ public class Operation{
     private int parentID;
     private long parentTimestamp;
     private int originalPosition; // Add this field
+    private String crdtState;
 
     public Operation()
     {
@@ -22,6 +23,14 @@ public class Operation{
         this.value = value;
         this.parentID = parentID;
         this.parentTimestamp = parentTimestamp;
+    }
+
+    public void setCrdtState(String crdtState) {
+        this.crdtState = crdtState;
+    }
+
+    public String getCrdtState() {
+        return this.crdtState;
     }
 
     public String getOp() {

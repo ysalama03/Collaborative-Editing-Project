@@ -14,6 +14,8 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.micrometer.common.lang.NonNull;
 
 import java.util.ArrayList;
@@ -59,7 +61,7 @@ public class ClientWebsocket {
             stompClient.setMessageConverter(new CompositeMessageConverter(converters));
 
             // Connect to the server
-            String url = "ws://localhost:8080/ws";
+            String url = "ws://localhost:8081/ws";
             stompSession = stompClient.connectAsync(url, new StompSessionHandlerAdapter() {
                 @Override
                 public void handleException(@NonNull StompSession session, @NonNull StompCommand command,
@@ -107,7 +109,23 @@ public class ClientWebsocket {
                             String currentText = crdtManager.getDocumentText();
                             // Update the UI with the current text
                             editorUI.updateDocumentWithString(currentText);
+                        } else if (result.getOp().equals("sync")) {
+                            // Only apply syncs from other users, not our own bounced back
+                            if (result.getID() != crdtManager.getLocalUserId()) {
+                                System.out.println("Processing sync from user " + result.getID());
+                                // Process the sync only if it's from another user
+                                if (result.getCrdtState() != null && !result.getCrdtState().equals("{}")) {
+                                    // Apply the sync...
+                                    // This would require implementing a method to update the local CRDT
+                                    crdtManager.updateFromSerialized(result.getCrdtState());
+                                    
+                                    // Update UI with synced state
+                                    String currentText = crdtManager.getDocumentText();
+                                    editorUI.updateDocumentWithString(currentText);
+                                }
+                            }
                         }
+                        
                     }
                 }
             });
@@ -193,21 +211,16 @@ public class ClientWebsocket {
                 @Override
                 @SuppressWarnings("unchecked")
                 public void handleFrame(@NonNull StompHeaders headers, @NonNull Object payload) {
-                    Map<String, Integer> cursorPositionsString = (Map<String, Integer>) payload;
-
+                    Map<String, Object> cursorPositionsRaw = (Map<String, Object>) payload;
                     // Convert Map<String, Integer> to Map<Integer, Integer>
-                    Map<Integer, Integer> cursorPositions = new HashMap<>();
-                    for (Map.Entry<String, Integer> entry : cursorPositionsString.entrySet()) {
-                        cursorPositions.put(Integer.parseInt(entry.getKey()), entry.getValue());
-                    }
-
-                    System.out.println("Received cursor positions: " + cursorPositions);
+                    System.out.println("Received cursor positions: " + cursorPositionsRaw);
 
                     // Update the active users list in the UI
                     Platform.runLater(() -> {
-                        for (Map.Entry<Integer, Integer> entry : cursorPositions.entrySet()) {
-                            int userId = entry.getKey();
-                            int lineNumber = entry.getValue();
+                        for (Map.Entry<String, Object> entry : cursorPositionsRaw.entrySet()) {
+                            int userId = Integer.parseInt(entry.getKey());
+                            Map<String, Integer> positionData = (Map<String, Integer>) entry.getValue();
+                            int lineNumber = positionData.get("line");
                             String userIdString = "User" + userId;
                             String displayText = userIdString + " (Line: " + lineNumber + ")";
                             
@@ -237,6 +250,61 @@ public class ClientWebsocket {
         }
     }
 
+    private String serializeCRDT(app.CRDTfiles.CRDT crdt) {
+    try {
+        // Create a serializable representation of the CRDT
+        Map<String, Object> serializedCRDT = new HashMap<>();
+        
+        // Serialize nodes
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        for (Map.Entry<app.CRDTfiles.CRDT.CharacterId, app.CRDTfiles.CRDT.Node> entry : crdt.nodeMap.entrySet()) {
+            app.CRDTfiles.CRDT.CharacterId id = entry.getKey();
+            app.CRDTfiles.CRDT.Node node = entry.getValue();
+            
+            if (id == null) continue; // Skip root node
+            
+            Map<String, Object> nodeMap = new HashMap<>();
+            nodeMap.put("id_timestamp", node.id.timestamp);
+            nodeMap.put("id_userId", node.id.userId);
+            nodeMap.put("value", String.valueOf(node.value));
+            nodeMap.put("isDeleted", node.isDeleted);
+            
+            if (node.parentId != null) {
+                nodeMap.put("parentId_timestamp", node.parentId.timestamp);
+                nodeMap.put("parentId_userId", node.parentId.userId);
+            } else {
+                nodeMap.put("parentId_timestamp", -1);
+                nodeMap.put("parentId_userId", -1);
+            }
+            
+            nodes.add(nodeMap);
+        }
+        
+        serializedCRDT.put("nodes", nodes);
+        
+        // Use Jackson to convert to JSON
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.writeValueAsString(serializedCRDT);
+    } catch (Exception e) {
+        System.err.println("Error serializing CRDT: " + e.getMessage());
+        e.printStackTrace();
+        return "{}";
+    }
+}
+
+
+    public void syncFullCRDT(String documentCode) {
+        // Serialize entire CRDT and send to server
+        Operation syncOp = new Operation();
+        syncOp.setOp("sync");
+        syncOp.setID(crdtManager.getLocalUserId());
+        //syncOp.setVersion(crdtManager.getCurrentVersion()); may need later, must implement setVersion
+        // Need to implement serialization of CRDT
+        syncOp.setCrdtState(serializeCRDT(crdtManager.getCRDT()));
+        sendOperation(syncOp, documentCode);
+    }
+
+
     public void sendOperation(Operation operation, String DocumentCode) {
         try {
             // Send the operation to the server
@@ -259,12 +327,16 @@ public class ClientWebsocket {
         }
     }
 
-    public void sendCursorPosition(int userId, String sessionCode, int lineNumber) {
+    public void sendCursorPosition(int userId, String sessionCode, int lineNumber, int columnPosition) {
         try {
             String destination = "/app/session/" + sessionCode + "/cursor";
-            Map<Integer, Integer> cursorPositionMap = Collections.singletonMap(userId, lineNumber);
+            Map<String, Integer> positionData = new HashMap<>();
+            positionData.put("line", lineNumber);
+            positionData.put("column", columnPosition);
+            
+            Map<Integer, Map<String, Integer>> cursorPositionMap = Collections.singletonMap(userId, positionData);
             stompSession.send(destination, cursorPositionMap);
-            System.out.println("Sent cursor position (line): " + lineNumber + " for user: " + userId);
+            System.out.println("Sent cursor position (line: " + lineNumber + ", column: " + columnPosition + ") for user: " + userId);
         } catch (Exception e) {
             System.err.println("Error sending cursor position: " + e.getMessage());
             e.printStackTrace();

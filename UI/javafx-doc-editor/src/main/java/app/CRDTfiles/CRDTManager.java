@@ -1,8 +1,13 @@
 package app.CRDTfiles;
 import org.springframework.messaging.simp.stomp.StompSession;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import app.Operation;
 import app.Client.ClientWebsocket;
+
+import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 public class CRDTManager {
@@ -67,6 +72,84 @@ public class CRDTManager {
         printCRDT();
         System.out.println("----------------------------------------------------------");
     }
+
+
+
+    /**
+ * Updates the local CRDT from serialized data received during sync operations
+ * 
+ * @param serializedCRDT JSON representation of the CRDT
+ */
+public void updateFromSerialized(String serializedCRDT) {
+    try {
+        // Parse the JSON data
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> crdtMap = mapper.readValue(serializedCRDT, Map.class);
+        List<Map<String, Object>> nodes = (List<Map<String, Object>>) crdtMap.get("nodes");
+        
+        if (nodes == null || nodes.isEmpty()) {
+            System.out.println("Received empty CRDT data in sync");
+            return;
+        }
+        
+        System.out.println("Updating local CRDT with " + nodes.size() + " nodes from sync");
+        
+        // Clear existing nodes except root
+        CRDT.Node rootNode = crdt.nodeMap.get(null);
+        crdt.nodeMap.clear();
+        crdt.nodeMap.put(null, rootNode);
+        rootNode.children.clear();
+        
+        // Reset any cached data
+        crdt.flatOrderedNodes.clear();
+        
+        // First pass: create all nodes
+        for (Map<String, Object> nodeData : nodes) {
+            // Extract node data
+            long idTimestamp = ((Number) nodeData.get("id_timestamp")).longValue();
+            int idUserId = ((Number) nodeData.get("id_userId")).intValue();
+            char value = nodeData.get("value").toString().charAt(0);
+            boolean isDeleted = (boolean) nodeData.get("isDeleted");
+            
+            // Create node ID
+            CRDT.CharacterId id = new CRDT.CharacterId(idTimestamp, idUserId);
+            
+            // Get parent ID
+            long parentTimestamp = ((Number) nodeData.get("parentId_timestamp")).longValue();
+            int parentUserId = ((Number) nodeData.get("parentId_userId")).intValue();
+            CRDT.CharacterId parentId = (parentTimestamp != -1) 
+                ? new CRDT.CharacterId(parentTimestamp, parentUserId)
+                : null;
+            
+            // Create node
+            CRDT.Node node = new CRDT.Node(id, parentId, value, isDeleted);
+            crdt.nodeMap.put(id, node);
+        }
+        
+        // Second pass: rebuild tree structure
+        for (CRDT.CharacterId id : crdt.nodeMap.keySet()) {
+            if (id == null) continue; // Skip root node
+            
+            CRDT.Node node = crdt.nodeMap.get(id);
+            CRDT.Node parentNode = crdt.nodeMap.get(node.parentId);
+            
+            if (parentNode != null) {
+                parentNode.addChild(node);
+            } else {
+                // If parent not found, add to root
+                rootNode.addChild(node);
+            }
+        }
+        
+        System.out.println("CRDT sync completed - Document now has " + (crdt.nodeMap.size() - 1) + " nodes"); 
+        System.out.println("Updated document text: " + crdt.getVisibleString());
+        
+    } catch (Exception e) {
+        System.err.println("Error updating CRDT from serialized data: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
+
 
     /**
      * Insert a character locally at the specified position and broadcast the operation

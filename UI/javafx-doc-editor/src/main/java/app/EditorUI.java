@@ -1,5 +1,7 @@
 package app;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -18,6 +20,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalTime;
 import java.util.HashMap;
 
@@ -65,6 +68,8 @@ public class EditorUI extends Application {
         initialContent = text; // Set the initial content to the provided text
     }
 
+    
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Document Editor");
@@ -111,9 +116,17 @@ public class EditorUI extends Application {
         // Add a listener for caret position changes
         textArea.caretPositionProperty().addListener((observable, oldValue, newValue) -> {
             int caretPosition = newValue.intValue();
-            String textBeforeCaret = textArea.getText(0, caretPosition); // Get text before the caret
-            int lineNumber = textBeforeCaret.split("\n", -1).length; // Count the number of lines
-            websocket.sendCursorPosition(userID, sessionCode, lineNumber);
+            String textBeforeCaret = textArea.getText(0, caretPosition);
+            
+            // Count lines before caret
+            int lineNumber = (int) textBeforeCaret.chars().filter(ch -> ch == '\n').count() + 1;
+            
+            // Count characters in the current line
+            int lastNewlinePos = textBeforeCaret.lastIndexOf('\n');
+            int columnPosition = lastNewlinePos == -1 ? caretPosition : caretPosition - lastNewlinePos - 1;
+            
+            // Send both line and column
+            websocket.sendCursorPosition(userID, sessionCode, lineNumber, columnPosition);
         });
 
         // Add functionality to the Export button
@@ -169,6 +182,8 @@ public class EditorUI extends Application {
             websocket.subscribeToCursor(editorCode, activeUsersList);
             websocket.subscribeToCursor(viewerCode, activeUsersList);
             sessionCode = editorCode;
+
+            setupPeriodicSync(editorCode);
         } else {
             crdtManager = new CRDTManager(userID, websocket, initialContent, false, sessionCode);
             if (isEditor) {
@@ -181,9 +196,25 @@ public class EditorUI extends Application {
             websocket.subscribeToActiveUsers(userID, sessionCode, activeUsersList); // Subscribe to active users
             websocket.sendUserId(userID, sessionCode);
             websocket.subscribeToCursor(sessionCode, activeUsersList);
+
+            websocket.syncFullCRDT(sessionCode);
+            setupPeriodicSync(sessionCode);
         }
 
     }
+    
+
+
+    // Add periodic sync (every 30 seconds or so)
+    private void setupPeriodicSync(String documentCode) {
+        Timeline timeline = new Timeline(
+            new KeyFrame(javafx.util.Duration.seconds(30), e -> websocket.syncFullCRDT(documentCode))
+        );
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.play();
+    }
+
+
 
     /**
      * Handles text changes in the editor, forms an Operation, and sends it.
@@ -287,7 +318,7 @@ public void updateDocumentWithString(String content) {
             RestTemplate restTemplate = new RestTemplate();
             
             // Define the server endpoint for creating a new document
-            String serverUrl = "http://localhost:8080/createDocument";
+            String serverUrl = "http://localhost:8081/createDocument";
 
             // Send a POST request to the server and receive the response as a Map
             HashMap<String, Object> response = restTemplate.postForObject(serverUrl, null, HashMap.class);

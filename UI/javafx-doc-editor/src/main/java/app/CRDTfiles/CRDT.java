@@ -16,7 +16,7 @@ public class CRDT {
         public int compareTo(CharacterId o) {
             // Modified ordering: Descending timestamp order (newer timestamps first)
             // This implements the ordering rule from the slides
-            int cmp = Long.compare(o.timestamp, this.timestamp);
+            int cmp = Long.compare(this.timestamp, o.timestamp);
             return cmp != 0 ? cmp : Integer.compare(this.userId, o.userId);
         }
 
@@ -65,7 +65,7 @@ public class CRDT {
 
     private final Node root = new Node(null, null, '\0', false);
     public final Map<CharacterId, Node> nodeMap = new HashMap<>();
-    private final List<Node> flatOrderedNodes = new ArrayList<>();
+    final List<Node> flatOrderedNodes = new ArrayList<>();
 
     public CRDT() {
         nodeMap.put(null, root);
