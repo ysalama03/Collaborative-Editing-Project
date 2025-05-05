@@ -292,15 +292,25 @@ public void updateDocumentWithString(String content) {
         if (scene != null) {
             TextArea textArea = (TextArea) scene.lookup(".text-area");
             if (textArea != null) {
+                // Save caret position
+                int caretPos = textArea.getCaretPosition();
+
+                // Try to keep caret at the same logical position after delete/undo/redo
+                // If caretPos > content.length(), move it to the end
+                int newCaretPos = Math.min(caretPos, content.length());
+
                 // Temporarily remove the listener to prevent change events
                 textArea.textProperty().removeListener(textChangeListener);
-                
+
                 // Update the TextArea content with the full document text
                 textArea.setText(content);
-                
+
+                // Restore caret position
+                textArea.positionCaret(newCaretPos);
+
                 // Debug log
                 System.out.println("UI updated with text: " + content);
-                
+
                 // Re-add the listener
                 textArea.textProperty().addListener(textChangeListener);
             } else {
