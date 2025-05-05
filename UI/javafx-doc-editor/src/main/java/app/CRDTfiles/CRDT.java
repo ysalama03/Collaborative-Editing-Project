@@ -16,7 +16,7 @@ public class CRDT {
         public int compareTo(CharacterId o) {
             // Modified ordering: Descending timestamp order (newer timestamps first)
             // This implements the ordering rule from the slides
-            int cmp = Long.compare(this.timestamp, o.timestamp);
+            int cmp = Long.compare(o.timestamp, this.timestamp);
             return cmp != 0 ? cmp : Integer.compare(this.userId, o.userId);
         }
 

@@ -61,7 +61,7 @@ public class ClientWebsocket {
             stompClient.setMessageConverter(new CompositeMessageConverter(converters));
 
             // Connect to the server
-            String url = "ws://localhost:8081/ws";
+            String url = "ws://localhost:8080/ws";
             stompSession = stompClient.connectAsync(url, new StompSessionHandlerAdapter() {
                 @Override
                 public void handleException(@NonNull StompSession session, @NonNull StompCommand command,
@@ -95,6 +95,15 @@ public class ClientWebsocket {
                     Operation result = (Operation) payload;
 
                     System.out.println("Received operation: " + result.getOp() + " from user: " + result.getID() + " with value: " + result.getValue());
+                    
+                    if (result.getOp().equals("delete")) {
+                        crdtManager.deleteRemote(result);
+                        // Get the latest document text after each delete
+                        String currentText = crdtManager.getDocumentText();
+                        // Update the UI with the current text
+                        editorUI.updateDocumentWithString(currentText);
+                    }
+
                     if (result.getID() != crdtManager.getLocalUserId()) {
                         if (result.getOp().equals("insert")) {
                             crdtManager.insertRemote(result);
@@ -103,13 +112,7 @@ public class ClientWebsocket {
                             String currentText = crdtManager.getDocumentText();
                             // Update the UI with the current text
                             editorUI.updateDocumentWithString(currentText);
-                        } else if (result.getOp().equals("delete")) {
-                            crdtManager.deleteRemote(result);
-                            // Get the latest document text after each delete
-                            String currentText = crdtManager.getDocumentText();
-                            // Update the UI with the current text
-                            editorUI.updateDocumentWithString(currentText);
-                        } else if (result.getOp().equals("sync")) {
+                        }  else if (result.getOp().equals("sync")) {
                             // Only apply syncs from other users, not our own bounced back
                             if (result.getID() != crdtManager.getLocalUserId()) {
                                 System.out.println("Processing sync from user " + result.getID());
@@ -212,19 +215,18 @@ public class ClientWebsocket {
                 @SuppressWarnings("unchecked")
                 public void handleFrame(@NonNull StompHeaders headers, @NonNull Object payload) {
                     Map<String, Object> cursorPositionsRaw = (Map<String, Object>) payload;
-                    // Convert Map<String, Integer> to Map<Integer, Integer>
                     System.out.println("Received cursor positions: " + cursorPositionsRaw);
 
-                    // Update the active users list in the UI
                     Platform.runLater(() -> {
                         for (Map.Entry<String, Object> entry : cursorPositionsRaw.entrySet()) {
                             int userId = Integer.parseInt(entry.getKey());
-                            Map<String, Integer> positionData = (Map<String, Integer>) entry.getValue();
-                            int lineNumber = positionData.get("line");
+                            String posString = entry.getValue().toString(); // Should be "row,column"
+                            String[] parts = posString.split(",");
+                            int lineNumber = parts.length > 0 ? Integer.parseInt(parts[0]) : -1;
+                            int columnNumber = parts.length > 1 ? Integer.parseInt(parts[1]) : -1;
                             String userIdString = "User" + userId;
-                            String displayText = userIdString + " (Line: " + lineNumber + ")";
-                            
-                            // Update the activeUsersList with the cursor position
+                            String displayText = userIdString + " (Line: " + lineNumber + ", Col: " + columnNumber + ")";
+
                             int index = -1;
                             for (int i = 0; i < activeUsersList.getItems().size(); i++) {
                                 if (activeUsersList.getItems().get(i).startsWith(userIdString)) {
@@ -316,6 +318,50 @@ public class ClientWebsocket {
         }
     }
 
+    public void sendSyncRequest(String DocumentCode) {
+        try {
+            String topic = "/topic/document/" + DocumentCode + "/sync";
+            stompSession.subscribe(topic, new StompFrameHandler() {
+                @Override
+                @NonNull
+                public Type getPayloadType(@NonNull StompHeaders headers) {
+                    // Expect a single Operation object per message
+                    return Operation.class;
+                }
+
+                @Override
+                public void handleFrame(@NonNull StompHeaders headers, @NonNull Object payload) {
+                    Operation op = (Operation) payload;
+                    System.out.println("Operation sync: " + op.getOp() + " from user: " + op.getID() + " with timestamp: " + op.getTimestamp());
+                    // Handle the operation as needed (apply to CRDT, update UI, etc.)
+                    
+                    if (op.getOp().equals("delete")) {
+                        crdtManager.deleteRemote(op);
+                    }
+
+                    // if(op.getID() == crdtManager.getLocalUserId()) {
+                    //     // Ignore operations from the local user
+                    //     return;
+                    // }
+                    if (op.getOp().equals("insert")) {
+                        crdtManager.insertRemote(op);
+                    }
+                    // Update UI if needed
+                    //String currentText = crdtManager.getDocumentText();
+                    editorUI.updateDocumentAfterSync();
+                }
+            });
+
+            // Send a sync request to the server
+            String destination = "/app/document/" + DocumentCode + "/sync";
+            stompSession.send(destination, "sync");
+
+        } catch (Exception e) {
+            System.err.println("Error sending sync request: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     public void sendUserId(int userId, String sessionCode) {
         try {
             // Send the user ID to the server
@@ -330,13 +376,11 @@ public class ClientWebsocket {
     public void sendCursorPosition(int userId, String sessionCode, int lineNumber, int columnPosition) {
         try {
             String destination = "/app/session/" + sessionCode + "/cursor";
-            Map<String, Integer> positionData = new HashMap<>();
-            positionData.put("line", lineNumber);
-            positionData.put("column", columnPosition);
-            
-            Map<Integer, Map<String, Integer>> cursorPositionMap = Collections.singletonMap(userId, positionData);
+            // Send as a map of userId -> "row,column"
+            String positionString = lineNumber + "," + columnPosition;
+            Map<String, String> cursorPositionMap = Collections.singletonMap(String.valueOf(userId), positionString);
             stompSession.send(destination, cursorPositionMap);
-            System.out.println("Sent cursor position (line: " + lineNumber + ", column: " + columnPosition + ") for user: " + userId);
+            System.out.println("Sent cursor position: " + positionString + " for user: " + userId);
         } catch (Exception e) {
             System.err.println("Error sending cursor position: " + e.getMessage());
             e.printStackTrace();

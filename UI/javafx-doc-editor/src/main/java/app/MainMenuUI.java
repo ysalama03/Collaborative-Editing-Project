@@ -30,7 +30,7 @@ public class MainMenuUI {
         try {
             RestTemplate restTemplate = new RestTemplate();
             // Use a simple health check endpoint or any existing endpoint
-            restTemplate.getForObject("http://localhost:8081/test", String.class);
+            restTemplate.getForObject("http://localhost:8080/test", String.class);
             return true;
         } catch (ResourceAccessException e) {
             // Server is not available
@@ -179,7 +179,7 @@ public class MainMenuUI {
                     RestTemplate restTemplate = new RestTemplate();
 
                     // Define the server endpoint for creating a new document
-                    String serverUrl = "http://localhost:8081/JoinDocument";
+                    String serverUrl = "http://localhost:8080/JoinDocument";
 
                     // Send a GET request to the server and receive the response as a Map
                     HashMap<String, String> response = restTemplate.getForObject(serverUrl + "/" + sessionCode, HashMap.class);

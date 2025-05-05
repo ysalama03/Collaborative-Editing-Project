@@ -31,9 +31,10 @@ public class CRDTManager {
 
         System.out.println("Text length: " + text.length());
         System.out.println("Text: " + text);
+        long parentTimestamp = -1;
         for (int i = 0; i < text.length(); i++) {
             try {
-                Thread.sleep(2);
+                Thread.sleep(10);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.err.println("Thread was interrupted: " + e.getMessage());
@@ -41,12 +42,11 @@ public class CRDTManager {
 
             char value = text.charAt(i);
             long timestamp = System.currentTimeMillis() + i; // Ensure unique timestamp for each character
-            CRDT.CharacterId id = new CRDT.CharacterId(timestamp, localUserId);
-            CRDT.CharacterId parentId = (i > 0) 
-                ? new CRDT.CharacterId(timestamp - 1, localUserId) 
-                : null;
-
+            CRDT.CharacterId id = new CRDT.CharacterId(timestamp, localUserId-1);
+            CRDT.CharacterId parentId = new CRDT.CharacterId(parentTimestamp, localUserId-1);
+            parentTimestamp = timestamp; // Set parent timestamp for the next character
             Operation op = new Operation();
+            
             op.setOp("insert");
             op.setID(id.userId);
             op.setTimestamp(id.timestamp);
@@ -60,11 +60,13 @@ public class CRDTManager {
                 op.setParentTimestamp(-1);
             }
 
+            System.out.println("operation: " + op.getOp() + " ID = " + op.getID() + " Timestamp = " + op.getTimestamp() + " Value = " + op.getValue() + " Parent ID = " + op.getParentID() + " Parent Timestamp = " + op.getParentTimestamp());
+
             if (local) {
                 insertLocalAtPosition(value, i, documentCode);
                 System.out.println("Inserted locally: " + value + " at position " + i);
             } else {
-                insertRemote(op);
+                //insertRemote(op);
             }
         }
 
@@ -181,6 +183,7 @@ public void updateFromSerialized(String serializedCRDT) {
         undoStack.push(op); // Push the operation onto the undo stack
         redoStack.clear(); // Clear the redo stack when a new operation is performed
 
+        System.out.println("check import: character: " + value + " at position " + position + " with ID: " + op.getID() + " and timestamp: " + op.getTimestamp());
         clientWebsocket.sendOperation(op, documentCode);
     }
 
@@ -211,6 +214,7 @@ public void updateFromSerialized(String serializedCRDT) {
             redoStack.clear(); // Clear the redo stack when a new operation is performed
 
             clientWebsocket.sendOperation(op, documentCode);
+            System.out.println("Deleted character: " + value + " at position " + position + " with ID: " + op.getID() + " and timestamp: " + op.getTimestamp());
             return true;
         } else {
             System.out.println("Delete failed: ID already deleted: " + id);

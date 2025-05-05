@@ -6,6 +6,7 @@ app\icons\UndoIcon.class
 app\Client\ClientWebsocket$3.class
 app\Main.class
 app\Operation.class
+app\Client\ClientWebsocket$6.class
 app\CRDTfiles\CRDT$CharacterId.class
 app\Client\ClientWebsocket$2.class
 app\EditorUI.class

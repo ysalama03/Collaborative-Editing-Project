@@ -196,6 +196,10 @@ public class EditorUI extends Application {
             websocket.subscribeToActiveUsers(userID, sessionCode, activeUsersList); // Subscribe to active users
             websocket.sendUserId(userID, sessionCode);
             websocket.subscribeToCursor(sessionCode, activeUsersList);
+            
+            if(!isImported) {
+                websocket.sendSyncRequest(sessionCode);
+            }
 
             websocket.syncFullCRDT(sessionCode);
             setupPeriodicSync(sessionCode);
@@ -251,10 +255,12 @@ public class EditorUI extends Application {
         } else if (newText.length() < oldText.length()) {
             // Delete operation - process the entire deleted string
             int charsToDelete = oldText.length() - newText.length();
+            
 
             for (int i = 0; i < charsToDelete; i++) {
                 // Always delete at diffIndex since positions shift after each deletion
                 crdtManager.deleteLocalAtPosition(diffIndex, sessionCode);
+                System.out.println("Deleting at position: " + diffIndex);
                 try {
                     Thread.sleep(2);
                 } catch (InterruptedException e) {
@@ -306,6 +312,41 @@ public void updateDocumentWithString(String content) {
     });
 }
 
+public void updateDocumentAfterSync() {
+    // Store the new content
+    this.initialContent = crdtManager.getDocumentText();
+
+    Platform.runLater(() -> {
+        // Find the TextArea in the scene and update it
+        Scene scene = Stage.getWindows().stream()
+            .filter(Window::isShowing)
+            .findFirst()
+            .map(Window::getScene)
+            .orElse(null);
+
+        if (scene != null) {
+            TextArea textArea = (TextArea) scene.lookup(".text-area");
+            if (textArea != null) {
+                // Temporarily remove the listener to prevent change events
+                textArea.textProperty().removeListener(textChangeListener);
+                
+                // Update the TextArea content with the full document text
+                textArea.setText(crdtManager.getDocumentText());
+                
+                // Debug log
+                System.out.println("UI updated with text: " + crdtManager.getDocumentText());
+                
+                // Re-add the listener
+                textArea.textProperty().addListener(textChangeListener);
+            } else {
+                System.err.println("TextArea not found in scene!");
+            }
+        } else {
+            System.err.println("No active window scene found!");
+        }
+    });
+}
+
     /**
      * Fetches the viewer and editor codes from the server and updates the labels.
      *
@@ -318,7 +359,7 @@ public void updateDocumentWithString(String content) {
             RestTemplate restTemplate = new RestTemplate();
             
             // Define the server endpoint for creating a new document
-            String serverUrl = "http://localhost:8081/createDocument";
+            String serverUrl = "http://localhost:8080/createDocument";
 
             // Send a POST request to the server and receive the response as a Map
             HashMap<String, Object> response = restTemplate.postForObject(serverUrl, null, HashMap.class);
