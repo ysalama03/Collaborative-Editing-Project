@@ -1,1 +1,1 @@
-This is a repo for making a collaborative text editor.
+This is a real-time collaborative text editor built using JavaFX for the UI, Spring Boot for the backend, and WebSockets for bi-directional communication. We implemented a custom tree-based CRDT to support concurrent editing, role-based access, live cursor tracking, and undo/redo functionality. Moreover, we enabled importing and exporting text files, as well as joining a session as an editor or a viewer.
